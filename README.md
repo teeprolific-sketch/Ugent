@@ -1,66 +1,104 @@
 # Ugent
 
-**Ugent by Me AI** is a personal AI agent that understands real African life: traffic, power cuts, family and irregular work. It learns you, manages your time, works offline, speaks local languages and takes real action.
+**Ugent by Me AI**: a personal AI agent for real African life. It plans around traffic, power cuts, family and irregular work, learns your energy, works offline, speaks English, Pidgin, Yoruba, Igbo, Hausa and French, and takes real action.
 
-This repository is the mobile app: an installable, offline-first web app (PWA). It has no build step and no dependencies, and the whole app is about 120 KB.
+Native app for iOS and Android, with a Next.js backend.
 
-## Run it
-
-```bash
-python3 -m http.server 8080
+```
+apps/mobile     Expo (React Native, TypeScript, expo-router) for the App Store and Google Play
+apps/api        Next.js backend: accounts, sync, Claude-powered chat, subscriptions, teams
+packages/core   Shared TypeScript: languages, planner, offline agent, API contract (used by both)
+brand/          Logo source and the script that renders every icon and splash image
 ```
 
-Then open http://localhost:8080 on your phone or in a browser's phone view. To install it, use **Add to Home screen** on Android or iOS. After the first visit it opens and works with no data connection.
+## How it fits together
 
-To make a single-file preview for sharing:
-
-```bash
-node scripts/build-preview.mjs
-```
+- **Offline first.** Everything the user does is stored on the phone and works with no connection. The planner and a rule-based agent that understands all six languages run on the phone (`packages/core`).
+- **Cloud when online.** Chat goes to `POST /api/chat`, where Claude reads the user's day and replies with text plus proposed actions as structured JSON. The shared planner works out the exact times. If Claude is unavailable, declines, or the daily allowance is used up, the same on-device agent answers, so chat never fails.
+- **The user stays in control.** Ugent proposes actions (add a task, schedule, reschedule, move a plan, tick off a task, start focus) and runs them only after **Yes, do it**, unless the user turns "Ask before taking actions" off. Every change can be undone.
+- **Sync.** Tasks and plans sync both ways (`POST /api/sync`) with last-edit-wins. Team plans are shared with the team.
 
 ## Screens
 
-| Screen | What it does |
-|---|---|
-| Splash | Ugent wordmark, by Me AI |
-| Onboarding | 3 steps: welcome, name and language, best time of day (plus an optional sample day) |
-| Home / Daily brief | Greeting, a short brief with one heads-up (traffic, power or energy), energy check-in, next plan, top 3 tasks |
-| Chat | Text and voice, 6 languages, action cards Ugent asks you to confirm, message drafts for WhatsApp |
-| Schedule | 7-day strip, timeline with a "Now" line, **Plans changed?** for automatic rescheduling, smart "Add plan" |
-| Tasks | Quick add, Today / All / Done, "Find time for this", move to tomorrow |
-| Your week (Analytics) | 3 numbers, tasks done per day, when you get things done |
-| Plans (Pricing) | Pro $2/month, Team $21/month |
-| Settings and privacy | Language, voice, low data, focus length, learning, ask-before-acting, see / copy / delete your data |
-| Focus | Countdown timer that holds Ugent's reminders and logs focus time |
+Splash, Onboarding (3 steps), Home / Daily brief, Chat (text and voice), Schedule (with **Plans changed?** and smart **Add plan**), Tasks, Your week (analytics), Plans (pricing), Settings and privacy. Also Focus mode and Team management.
 
-## How the features work
+## Run it locally
 
-- **Languages**: English, Pidgin, Yoruba, Igbo, Hausa and French for the main UI labels and all of Ugent's replies (`js/i18n.js`). Ugent understands requests in any of them, with or without tone marks (`js/agent.js`).
-- **Takes action**: chat requests become real changes: add tasks, schedule plans, reschedule, start focus, draft a message. "Ask before taking actions" (on by default) shows a card and waits for **Yes, do it**; every change can be undone.
-- **Automatic rescheduling** (`js/planner.js`): traffic (+45 min), running late (+30 min), power out (moves plans that need power), tired (moves heavy work to your best time tomorrow), family emergency (moves the rest of today). Fixed-time plans never move; Ugent offers a "running late" message for them instead.
-- **Learns your energy**: Ugent records when you finish tasks. After 8 or more in two weeks, it uses your real best time of day instead of the one you picked.
-- **Offline and low data**: a service worker (`sw.js`) caches the whole app. All logic runs on the phone. Data lives in `localStorage` on the device only.
-- **Me AI family**: Sleek, Domestica I and Afrika I appear under More as "Coming soon", and Ugent recognises requests for them (for example "I need a plumber").
+Needs Node 20+ and Postgres.
 
-## Not built yet
-
-- **Payments**: choosing Pro or Team switches the plan for testing only. Nothing is charged.
-- **Cloud AI model**: the on-device agent handles common requests with rules. A Me AI Labs model can be plugged in behind `Agent.respond()` for open-ended conversation when online.
-- **Sync, team features, and connections** to Sleek, Domestica I and Afrika I.
-- **Translations**: the Yoruba, Igbo, Hausa and Pidgin copy should be reviewed by native speakers before launch.
-- **Voice input** uses the browser's speech recognition. Support for Yoruba, Igbo and Hausa varies by phone.
-
-## Project layout
-
+```bash
+npm install
 ```
-index.html            app shell
-css/app.css           design tokens (sky #0EA5E9, white, deep blue #0B3D91) and all styles, light and dark
-js/i18n.js            languages and copy
-js/store.js           on-device data and the sample day
-js/planner.js         energy learning, free-time finder, rescheduling
-js/agent.js           understands requests and turns them into actions
-js/app.js             screens, navigation, chat, focus mode
-sw.js                 offline cache
-manifest.webmanifest  install settings
-scripts/build-preview.mjs  single-file preview bundle
+
+```bash
+cp apps/api/.env.example apps/api/.env.local
 ```
+
+Fill in `DATABASE_URL` and `AUTH_SECRET` (and `ANTHROPIC_API_KEY` for cloud chat), then create the tables and start the API:
+
+```bash
+npm run db:migrate -w @ugent/api
+```
+
+```bash
+npm run dev -w @ugent/api
+```
+
+Start the app. It needs a development build because it uses native modules (voice, notifications, purchases):
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env
+```
+
+```bash
+npm run build:dev -w @ugent/mobile
+```
+
+```bash
+npm run start -w @ugent/mobile
+```
+
+Leave `EXPO_PUBLIC_API_URL` empty to run the app fully offline with no backend.
+
+### Checks
+
+```bash
+npm run typecheck
+```
+
+```bash
+npm test
+```
+
+```bash
+npm run smoke -w @ugent/api
+```
+
+The smoke test runs against a live API and covers sign-in, sync and conflicts, privacy between users, chat fallback, the subscription webhook, teams and admin controls, plan limits, and account deletion.
+
+## Release to the App Store and Google Play
+
+1. **Expo account and EAS.** Run `npx eas-cli@latest init` in `apps/mobile` (fills `extra.eas.projectId`). Bundle ID and package are `ai.meai.ugent`; change them in `app.json` first if you want a different one, because they cannot change after release.
+2. **Deploy the API.** Any Node host works (Vercel, Render, Fly). Use a managed Postgres (Neon, Supabase, RDS) and run `npm run db:migrate -w @ugent/api` against it. Set `DATABASE_URL`, `AUTH_SECRET`, `ANTHROPIC_API_KEY`, `REVENUECAT_WEBHOOK_AUTH` and `PRIVACY_CONTACT_EMAIL`. Put the API URL in `apps/mobile/eas.json` (`EXPO_PUBLIC_API_URL`, currently a placeholder).
+3. **Subscriptions.** In App Store Connect and Google Play Console, create two monthly subscriptions: Pro ($2) and Team ($21). In RevenueCat, add both apps, create entitlements named `pro` and `team`, attach the products, and put them in the current offering with identifiers containing `pro` and `team`. Copy the public SDK keys to `EXPO_PUBLIC_RC_IOS_KEY` and `EXPO_PUBLIC_RC_ANDROID_KEY`. Add a webhook to `https://<api>/api/webhooks/revenuecat` with the same Authorization value as `REVENUECAT_WEBHOOK_AUTH`.
+4. **Store listings.** Privacy policy URL: `https://<api>/privacy`. Account deletion is in Settings and privacy (both stores require it). Data collected: name, plans, tasks, chat messages and usage times, linked to the user and not used for tracking.
+5. **Build and submit.**
+
+   ```bash
+   npm run build:store -w @ugent/mobile
+   ```
+
+   ```bash
+   npm run submit -w @ugent/mobile
+   ```
+
+## Brand
+
+The wordmark is traced from the Outfit typeface: sky blue letters (`#0EA5E9`) with a deep blue (`#0B3D91`) cursor bar under the "t". To change it, edit `brand/build-logo.mjs` and run `node brand/build-logo.mjs`; it regenerates the SVGs, app icon, Android adaptive icon layers, splash images, favicon and the in-app logo paths. In the app, Outfit is used for English, Pidgin and French, and Noto Sans for Yoruba, Igbo and Hausa, whose stacked tone marks Outfit cannot position.
+
+## Before launch
+
+- Native speakers should review the Yoruba, Igbo, Hausa and Pidgin copy in `packages/core/src/i18n.ts`. Labels beyond the main navigation, brief and chat replies are English for now.
+- Voice input uses the phone's speech recognition. Support for Yoruba, Igbo and Hausa varies by device; Ugent tells the user when a language is not available.
+- Sign-in is per install (a device secret in secure storage). Add phone-number sign-in to move an account to a new phone.
+- Sleek, Domestica I and Afrika I appear as "Coming soon". Ugent recognises requests for them.

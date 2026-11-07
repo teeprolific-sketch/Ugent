@@ -1,0 +1,19 @@
+{
+  "name": "ugent",
+  "private": true,
+  "description": "Ugent by Me AI: mobile app (Expo), API (Next.js) and shared core.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w @ugent/mobile",
+    "api": "npm run dev -w @ugent/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "opentype.js": "^2.0.0",
+    "sharp": "^0.35.5"
+  }
+}
