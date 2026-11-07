@@ -13,7 +13,7 @@ export async function askUgent(text: string, history: ChatMessage[]): Promise<Ag
   const d0 = fmtDate(new Date());
   const device = () => respond(text, state, { lang: s.profile.lang, now: new Date(), fmtTime: fmtTime(s.profile.lang) });
 
-  if (!apiConfigured() || s.settings.lowData) return device();
+  if (!apiConfigured() || s.settings.lowData || !s.settings.cloudChat) return device();
   const net = await NetInfo.fetch();
   if (net.isConnected === false) return device();
   try {
@@ -24,7 +24,7 @@ export async function askUgent(text: string, history: ChatMessage[]): Promise<Ag
       lang: s.profile.lang,
       localNow: localNow(),
       state: {
-        name: state.name, peak: state.peak, learn: state.learn, focusMins: state.focusMins,
+        name: state.name, peak: state.peak, learn: state.learn, focusMins: state.focusMins, hustle: s.profile.hustle, day: state.day,
         events: state.events.filter((e) => e.date >= d0 && e.date <= addDays(d0, 7)).slice(0, 300),
         tasks: state.tasks.filter((t) => !t.done).slice(0, 300),
         completions: state.log.completions.slice(-500).map((c) => ({ t: c.t })),

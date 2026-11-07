@@ -77,3 +77,9 @@ export async function forgetSession() {
   await secure.del('ugent.token');
   await secure.del('ugent.device');
 }
+
+/** Tell the server about focus mode (for WhatsApp Business auto-replies). Best effort. */
+export async function reportFocus(until: number | null) {
+  if (!API_URL || !token) return;
+  try { await request('POST', '/api/focus', { until }, 8000); } catch { /* offline: auto-replies stay off */ }
+}

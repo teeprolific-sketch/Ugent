@@ -15,12 +15,59 @@ brand/          Logo source and the script that renders every icon and splash im
 
 - **Offline first.** Everything the user does is stored on the phone and works with no connection. The planner and a rule-based agent that understands all six languages run on the phone (`packages/core`).
 - **Cloud when online.** Chat goes to `POST /api/chat`, where Claude reads the user's day and replies with text plus proposed actions as structured JSON. The shared planner works out the exact times. If Claude is unavailable, declines, or the daily allowance is used up, the same on-device agent answers, so chat never fails.
-- **The user stays in control.** Ugent proposes actions (add a task, schedule, reschedule, move a plan, tick off a task, start focus) and runs them only after **Yes, do it**, unless the user turns "Ask before taking actions" off. Every change can be undone.
+- **The user stays in control.** Ugent proposes actions (add a task, schedule, reschedule, move a plan, tick off a task, start focus, call someone, send a WhatsApp or SMS, get directions) and runs them only after **Yes, do it**, unless the user turns "Ask before taking actions" off. Every change can be undone.
 - **Sync.** Tasks and plans sync both ways (`POST /api/sync`) with last-edit-wins. Team plans are shared with the team.
 
 ## Screens
 
-Splash, Onboarding (3 steps), Home / Daily brief, Chat (text and voice), Schedule (with **Plans changed?** and smart **Add plan**), Tasks, Your week (analytics), Plans (pricing), Settings and privacy. Also Focus mode and Team management.
+1. Splash
+2. Onboarding: welcome, language (with search), daily rhythm, hustle type, privacy choices
+3. Home / Daily brief (Personal) or Team home (Team workspace)
+4. Chat with Ugent
+5. Voice mode (hands-free, replies spoken aloud)
+6. Schedule: day and week views; Team calendar with everyone's shared plans
+7. Add / edit plan (with place and Google Maps directions)
+8. Tasks; Team tasks board (To do / Doing / Done, assignees)
+9. Focus mode
+10. Your week (analytics), with Team analytics on the Team plan
+11. Me AI ecosystem: Sleek, Domestica I, Afrika I, ID'd (waitlists, plus a working scam check)
+12. Connected apps
+13. WhatsApp and WhatsApp Business
+14. Location and maps
+15. Plans: Pro $2 and Team $21
+16. Team dashboard
+17. Team admin: members, roles, invite code, removal
+18. Profile
+19. Settings
+20. Privacy and memory
+21. Notifications
+22. Language (with search)
+23. Offline mode status
+24. Help and support (FAQ, contact, report a problem)
+25. Empty states throughout for new users
+
+People on the Team plan get a **Personal / Team** switcher on Home, Schedule and Tasks. Pro accounts never see team elements.
+
+## Connected apps
+
+| App | How it connects | What Ugent does |
+|---|---|---|
+| WhatsApp | On the phone, no setup | Opens WhatsApp with the message ready (late notes, shared plans, "Tell Kemi I'm on my way"); the user presses send |
+| SMS | On the phone | Opens the SMS composer with the text ready |
+| Phone and contacts | Contacts permission | "Call Mum" finds the number and opens the dialer |
+| Apple Calendar / phone calendar | Calendar permission | Shows the next 7 days of events in the plan, read-only, never moved |
+| Google Maps | Location permission | Directions, "leave by" times; live traffic needs `GOOGLE_MAPS_API_KEY` on the API |
+| Google Calendar, Gmail, Google Tasks | Google sign-in through the API (read-only) | Calendar events in the plan, important unread emails in the brief, import open tasks |
+| WhatsApp Business | Meta Cloud API through the API | Auto-replies to customers while the owner is in Focus mode; customer inbox |
+| Notion | Later | |
+| Sleek, Domestica I, Afrika I, ID'd | Me AI products | Waitlists today; ID'd scam check works now, on the phone |
+
+To switch on the cloud connections, set the variables in `apps/api/.env.example`:
+- **Google:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `PUBLIC_URL` (redirect `${PUBLIC_URL}/api/integrations/google/callback`).
+- **Live traffic:** `GOOGLE_MAPS_API_KEY`, for the Routes API.
+- **WhatsApp Business:** `META_WA_TOKEN`, `WA_APP_SECRET` and `WA_VERIFY_TOKEN` (webhook `${PUBLIC_URL}/api/webhooks/whatsapp`).
+
+Until they are set, the app shows these connections as "Being set up by Me AI".
 
 ## Run it locally
 
@@ -74,7 +121,7 @@ npm test
 npm run smoke -w @ugent/api
 ```
 
-The smoke test runs against a live API and covers sign-in, sync and conflicts, privacy between users, chat fallback, the subscription webhook, teams and admin controls, plan limits, and account deletion.
+The smoke test runs against a live API (20 checks): sign-in, sync and conflicts, privacy between users, chat fallback, the subscription webhook, teams, task board, shared updates, team analytics, roles, connected-service status, signed WhatsApp webhooks with auto-reply during focus, waitlists, support requests, plan limits and account deletion.
 
 ## Release to the App Store and Google Play
 

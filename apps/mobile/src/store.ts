@@ -2,7 +2,7 @@
  * Every change to a task or plan is stamped with updatedAt and marked dirty for the next sync.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Action, EnergyLog, Lang, Logs, Me, Peak, Plan, PlanEvent, PlannerState, Reason, Task } from '@ugent/core';
+import type { Action, EnergyLog, Hustle, IntegrationStatus, Lang, Logs, Me, Peak, Plan, PlanEvent, PlannerState, Product, Reason, Task, TaskStatus, TeamFeedItem, TeamInfo, TeamMemberStats } from '@ugent/core';
 import { addDays, applyMoves, fmtDate, sampleDay, uid } from '@ugent/core';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -24,15 +24,44 @@ export interface Settings {
   focusMins: number;
   reminders: boolean;
   lowData: boolean;
+  /** Use the cloud AI (Claude via the Ugent API) when online. Off: everything runs on the phone. */
+  cloudChat: boolean;
+  /** Keep chat history on the phone. Off: chats are cleared when Ugent closes. */
+  rememberChats: boolean;
+  /** Minutes before a plan to remind. */
+  leadMins: number;
+  /** Morning brief notification, "HH:MM" or '' for off. */
+  briefTime: string;
+  /** No reminders between sleep and wake time. */
+  quietHours: boolean;
+  /** Travel time to assume when live traffic is not available. */
+  travelBuffer: number;
+  /** Message used for "running late" drafts. */
+  lateTemplate: string;
 }
+
+/** Apps connected on the phone itself (no Ugent account needed). */
+export type DeviceConn = 'phone' | 'sms' | 'whatsapp' | 'googleMaps' | 'deviceCalendar';
+export interface ConnState { on: boolean; at: number; detail?: string }
+
+export type Workspace = 'personal' | 'team';
 
 interface Snapshot { tasks: Task[]; events: PlanEvent[] }
 
 export interface AppState {
   hydrated: boolean;
   onboarded: boolean;
-  profile: { name: string; lang: Lang; peak: Peak };
+  profile: { name: string; lang: Lang; peak: Peak; hustle: Hustle | null; wake: number; sleep: number };
   settings: Settings;
+  workspace: Workspace;
+  team: TeamInfo | null;
+  teamFeed: TeamFeedItem[];
+  teamStats: { members: TeamMemberStats[]; totals: { doneThisWeek: number; open: number; unassigned: number } } | null;
+  connections: Partial<Record<DeviceConn, ConnState>>;
+  cloud: IntegrationStatus[];
+  places: { home: string; work: string };
+  gmail: { count: number; top: { from: string; subject: string }[]; at: number } | null;
+  waitlist: Product[];
   me: Me | null;
   tasks: Task[];
   events: PlanEvent[];
@@ -42,7 +71,20 @@ export interface AppState {
   sync: { cursor: number; lastAt: number | null; dirtyTasks: string[]; dirtyEvents: string[] };
   undo: Snapshot | null;
 
-  finishOnboarding: (p: { name: string; lang: Lang; peak: Peak; sample: boolean }) => void;
+  finishOnboarding: (p: { name: string; lang: Lang; peak: Peak; hustle: Hustle | null; wake: number; sleep: number; sample: boolean; settings: Partial<Settings> }) => void;
+  setWorkspace: (w: Workspace) => void;
+  setTeam: (team: TeamInfo | null) => void;
+  setTeamData: (d: Partial<Pick<AppState, 'teamFeed' | 'teamStats'>>) => void;
+  setConnection: (id: DeviceConn, on: boolean, detail?: string) => void;
+  setCloud: (items: IntegrationStatus[]) => void;
+  setPlaces: (p: Partial<AppState['places']>) => void;
+  setGmail: (g: AppState['gmail']) => void;
+  setWaitlist: (w: Product[]) => void;
+  /** Replace the events imported from one outside source (phone calendar, Google Calendar). */
+  setExternalEvents: (prefix: string, events: PlanEvent[]) => void;
+  addTeamTask: (title: string, assigneeId: string | null) => Task;
+  forgetChats: () => void;
+  forgetHabits: () => void;
   setProfile: (p: Partial<AppState['profile']>) => void;
   setSettings: (s: Partial<Settings>) => void;
   setMe: (me: Me | null) => void;
@@ -55,8 +97,8 @@ export interface AppState {
   updateEvent: (id: string, patch: Partial<PlanEvent>) => void;
   deleteEvent: (id: string) => void;
   applyReschedule: (reason: Reason, moves: Extract<Action, { type: 'reschedule' }>['moves']) => void;
-  /** Runs agent actions. Returns minutes for a focus action, if any, so the caller can open focus mode. */
-  runActions: (actions: Action[]) => { focusMins: number | null };
+  /** Runs agent actions on the data. Returns what the screen must do itself: open focus, or open another app. */
+  runActions: (actions: Action[]) => { focusMins: number | null; external: Action[] };
 
   logEnergy: (v: EnergyLog['v']) => void;
   clearSamples: () => void;
@@ -75,10 +117,25 @@ export interface AppState {
   resetAll: () => void;
 }
 
+const DEFAULT_SETTINGS: Settings = {
+  voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false,
+  cloudChat: true, rememberChats: true, leadMins: 10, briefTime: '07:00', quietHours: true, travelBuffer: 45,
+  lateTemplate: "Hi, I'm running about {mins} minutes late because of {reason}. Sorry, I'm on my way.",
+};
+
 const DEFAULTS = {
   onboarded: false,
-  profile: { name: '', lang: 'en' as Lang, peak: 'morning' as Peak },
-  settings: { voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false },
+  profile: { name: '', lang: 'en' as Lang, peak: 'morning' as Peak, hustle: null as Hustle | null, wake: 6 * 60, sleep: 22 * 60 + 30 },
+  settings: DEFAULT_SETTINGS,
+  workspace: 'personal' as Workspace,
+  team: null as TeamInfo | null,
+  teamFeed: [] as TeamFeedItem[],
+  teamStats: null as AppState['teamStats'],
+  connections: {} as AppState['connections'],
+  cloud: [] as IntegrationStatus[],
+  places: { home: '', work: '' },
+  gmail: null as AppState['gmail'],
+  waitlist: [] as Product[],
   me: null,
   tasks: [] as Task[],
   events: [] as PlanEvent[],
@@ -90,6 +147,7 @@ const DEFAULTS = {
 };
 
 const addId = (list: string[], id: string) => (list.includes(id) ? list : [...list, id]);
+export { DEFAULT_SETTINGS };
 
 export const useApp = create<AppState>()(
   persist(
@@ -101,11 +159,12 @@ export const useApp = create<AppState>()(
         hydrated: false,
         ...DEFAULTS,
 
-        finishOnboarding: ({ name, lang, peak, sample }) => {
+        finishOnboarding: ({ name, lang, peak, hustle, wake, sleep, sample, settings }) => {
           const extra = sample ? sampleDay(new Date()) : null;
           set((s) => ({
             onboarded: true,
-            profile: { name, lang, peak },
+            profile: { name, lang, peak, hustle, wake, sleep },
+            settings: { ...s.settings, ...settings },
             tasks: extra ? extra.tasks : s.tasks,
             events: extra ? extra.events : s.events,
             log: extra ? { ...s.log, completions: extra.completions, focus: extra.focus, reschedules: extra.reschedules } : s.log,
@@ -113,7 +172,25 @@ export const useApp = create<AppState>()(
         },
         setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
         setSettings: (p) => set((s) => ({ settings: { ...s.settings, ...p } })),
-        setMe: (me) => set({ me }),
+        setMe: (me) => set((s) => ({ me, workspace: me?.teamId || me?.plan === 'team' ? s.workspace : 'personal' })),
+        setWorkspace: (workspace) => set({ workspace }),
+        setTeam: (team) => set({ team }),
+        setTeamData: (d) => set(d),
+        setConnection: (id, on, detail) => set((s) => ({ connections: { ...s.connections, [id]: { on, at: Date.now(), detail } } })),
+        setCloud: (cloud) => set({ cloud }),
+        setPlaces: (p) => set((s) => ({ places: { ...s.places, ...p } })),
+        setGmail: (gmail) => set({ gmail }),
+        setWaitlist: (waitlist) => set({ waitlist }),
+        setExternalEvents: (prefix, list) => set((s) => ({
+          events: [...s.events.filter((e) => !(e.external && e.id.startsWith(prefix))), ...list.map((e) => ({ ...e, external: true, fixed: true }))],
+        })),
+        addTeamTask: (title, assigneeId) => {
+          const t = get().addTask(title);
+          get().updateTask(t.id, { teamId: get().me?.teamId ?? null, assigneeId, status: 'todo' });
+          return get().tasks.find((x) => x.id === t.id)!;
+        },
+        forgetChats: () => set({ messages: [] }),
+        forgetHabits: () => set((s) => ({ log: { ...s.log, completions: [], energy: [] } })),
 
         addTask: (title, date) => {
           const now = Date.now();
@@ -131,7 +208,7 @@ export const useApp = create<AppState>()(
           if (!t) return false;
           const done = !t.done;
           const now = Date.now();
-          get().updateTask(id, { done, doneAt: done ? now : null });
+          get().updateTask(id, { done, doneAt: done ? now : null, ...(t.teamId ? { status: (done ? 'done' : 'todo') as TaskStatus } : {}) });
           set((s) => ({
             log: {
               ...s.log,
@@ -168,6 +245,7 @@ export const useApp = create<AppState>()(
           const s = get();
           s.snapshot();
           let focusMins: number | null = null;
+          const external: Action[] = [];
           for (const a of actions) {
             if (a.type === 'addTask') s.addTask(a.title, a.date);
             else if (a.type === 'addEvent') s.addEvent({ title: a.title, date: a.date, start: a.start, dur: a.dur, kind: a.kind, fixed: false, needsPower: a.kind === 'deep' || a.kind === 'meeting' });
@@ -175,8 +253,9 @@ export const useApp = create<AppState>()(
             else if (a.type === 'moveEvent') s.updateEvent(a.move.id, { date: a.move.toDate, start: a.move.to });
             else if (a.type === 'completeTask') { const t = get().tasks.find((x) => x.id === a.id); if (t && !t.done) s.toggleTask(a.id); }
             else if (a.type === 'focus') focusMins = a.mins;
+            else external.push(a); // call, message, directions: the screen opens the right app
           }
-          return { focusMins };
+          return { focusMins, external };
         },
 
         logEnergy: (v) => set((s) => ({ log: { ...s.log, energy: [...s.log.energy, { t: Date.now(), v }] } })),
@@ -251,9 +330,23 @@ export const useApp = create<AppState>()(
     },
     {
       name: 'ugent-v1',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: ({ hydrated: _h, undo: _u, ...rest }) => rest as unknown as AppState,
+      partialize: ({ hydrated: _h, undo: _u, ...rest }) =>
+        (rest.settings.rememberChats ? rest : { ...rest, messages: [] }) as unknown as AppState,
+      // Older saves lack newer fields: fill them from the defaults instead of dropping them.
+      migrate: (saved) => saved as AppState,
+      merge: (saved, current) => {
+        const p = (saved ?? {}) as Partial<AppState>;
+        return {
+          ...current, ...p,
+          profile: { ...current.profile, ...p.profile },
+          settings: { ...current.settings, ...p.settings },
+          places: { ...current.places, ...p.places },
+          sync: { ...current.sync, ...p.sync },
+          log: { ...current.log, ...p.log },
+        };
+      },
       onRehydrateStorage: () => () => useApp.setState({ hydrated: true }),
     },
   ),
@@ -265,14 +358,19 @@ export const liveEvents = (s: Pick<AppState, 'events'>) => s.events.filter((e) =
 
 /** The planner's view of the state. */
 export const plannerState = (s: AppState): PlannerState => ({
-  events: liveEvents(s),
+  // Team-only plans from other people are not on this user's own day.
+  events: liveEvents(s).filter((e) => !e.teamId || !e.ownerId || e.ownerId === s.me?.id),
   tasks: liveTasks(s),
   log: { completions: s.log.completions },
   peak: s.profile.peak,
   learn: s.settings.learn,
   focusMins: s.settings.focusMins,
   name: s.profile.name,
+  day: { start: s.profile.wake + 30, end: Math.max(s.profile.wake + 8 * 60, (s.profile.sleep < s.profile.wake ? s.profile.sleep + 1440 : s.profile.sleep) - 60) },
 });
+
+export const inTeam = (s: Pick<AppState, 'me'>) => !!s.me?.teamId;
+export const teamMode = (s: Pick<AppState, 'me' | 'workspace'>) => inTeam(s) && s.workspace === 'team';
 
 export const effectivePlan = (s: AppState): Plan => s.me?.plan ?? 'free';
 export const tomorrow = () => addDays(fmtDate(new Date()), 1);

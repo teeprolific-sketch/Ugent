@@ -12,6 +12,8 @@ import { Wordmark } from '@/brand/Logo';
 import { initNotifications, scheduleReminders } from '@/lib/notifications';
 import { initPurchases } from '@/lib/purchases';
 import { syncNow, syncSoon } from '@/lib/sync';
+import { refreshCloud, refreshImports } from '@/lib/connections';
+import { refreshTeam } from '@/lib/team';
 import { useApp } from '@/store';
 import { setFontLanguage, useColors } from '@/theme';
 
@@ -34,8 +36,9 @@ export default function RootLayout() {
   // Background work: sync when the app opens, comes back online or changes; keep reminders current.
   useEffect(() => {
     if (!ready || !onboarded) return;
-    void syncNow();
-    const appSub = AppState.addEventListener('change', (st) => { if (st === 'active') void syncNow(); });
+    const refreshAll = () => { void syncNow().then(() => { void refreshCloud().then(refreshImports); if (useApp.getState().me?.teamId) void refreshTeam(); }); };
+    refreshAll();
+    const appSub = AppState.addEventListener('change', (st) => { if (st === 'active') refreshAll(); });
     const netSub = NetInfo.addEventListener((st) => { if (st.isConnected) syncSoon(500); });
     const storeSub = useApp.subscribe((s, prev) => {
       if (s.tasks !== prev.tasks || s.events !== prev.events) syncSoon();
@@ -53,11 +56,11 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default' }}>
           <Stack.Protected guard={onboarded}>
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="analytics" />
-            <Stack.Screen name="pricing" />
-            <Stack.Screen name="settings" />
-            <Stack.Screen name="team" />
+            <Stack.Screen name="voice" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="focus" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
+            {['analytics', 'pricing', 'settings', 'team', 'team-admin', 'ecosystem', 'connections/index', 'connections/whatsapp', 'connections/maps',
+              'profile', 'privacy', 'notifications', 'language', 'offline', 'help'].map((n) => <Stack.Screen key={n} name={n} />)}
           </Stack.Protected>
           <Stack.Protected guard={!onboarded}>
             <Stack.Screen name="onboarding" />

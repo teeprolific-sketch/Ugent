@@ -6,6 +6,7 @@ import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { Button, T, useToast } from '@/components/ui';
+import { reportFocus } from '@/lib/api';
 import { useApp } from '@/store';
 import { font, useColors } from '@/theme';
 
@@ -24,7 +25,7 @@ export default function Focus() {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
-  useEffect(() => { if (!focus) router.back(); }, [focus]);
+  useEffect(() => { if (!focus) { void reportFocus(null); router.back(); } }, [focus]);
 
   const left = focus ? Math.max(0, focus.until - now) : 0;
   useEffect(() => {

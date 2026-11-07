@@ -10,8 +10,8 @@ import { syncNow } from '@/lib/sync';
 import { effectivePlan, useApp } from '@/store';
 import { useColors } from '@/theme';
 
-const PRO = ['Chat and voice in 6 languages', 'Smart scheduling that adjusts when plans change', 'Works offline and on low data', 'Daily brief and simple analytics', 'Focus protection', 'Ugent takes actions for you'];
-const TEAM = ['Everything in Pro', 'Shared calendars', 'Admin controls', 'Invite your team with a code', 'Team members are covered by your plan'];
+const PRO = ['Personal daily brief, calendar and tasks', 'Full chat and voice in 6 languages', 'Smart scheduling and automatic rescheduling', 'Personal analytics', 'Connected apps: WhatsApp, Maps, Calendar, Gmail and more', 'Me AI ecosystem: Sleek, Domestica I, Afrika I, ID\'d', 'Works offline and on low data'];
+const TEAM = ['Everything in Pro', 'Team home with shared updates', 'Shared team calendar', 'Team tasks board', 'Admin panel: members and roles', 'Advanced team analytics', 'Syncing across everyone on the team', 'Personal and Team workspaces'];
 
 export default function Pricing() {
   const c = useColors();
@@ -68,7 +68,7 @@ export default function Pricing() {
     <Screen>
       <Header back title="Plans" sub="Simple prices. Cancel any time." />
       {card('pro', 'Pro', 'For you', '$2', PRO, true)}
-      {card('team', 'Team', 'Families and small teams', '$21', TEAM, false)}
+      {card('team', 'Team', 'Teams and companies', '$21', TEAM, false)}
       <View style={{ gap: 10 }}>
         <T v="small" muted>
           Without a plan, Ugent still works on your phone, offline, with up to 10 cloud chat messages a day.

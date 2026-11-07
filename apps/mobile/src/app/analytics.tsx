@@ -2,7 +2,12 @@ import { addDays, bestTime, energyPattern, fmtDate, parseDate } from '@ugent/cor
 import type { Peak } from '@ugent/core';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Card, Header, Pill, Screen, Section, T } from '@/components/ui';
+import { Card, Header, Pill, Screen, Section, Segmented, T } from '@/components/ui';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { Avatar, EmptyState } from '@/components/kit';
+import { memberColor, refreshTeam } from '@/lib/team';
+import { inTeam } from '@/store';
 import { useLang } from '@/hooks';
 import { fmtDay } from '@/lib/format';
 import { plannerState, useApp } from '@/store';
@@ -15,6 +20,9 @@ export default function Analytics() {
   const lang = useLang();
   const state = useApp();
   const [picked, setPicked] = useState<number | null>(null);
+  const [who, setWho] = useState<'me' | 'team'>('me');
+  const showTeam = inTeam(state) && who === 'team';
+  useEffect(() => { if (showTeam) void refreshTeam(); }, [showTeam]);
   const now = new Date();
   const d0 = fmtDate(now);
   const days = Array.from({ length: 7 }, (_, i) => addDays(d0, i - 6));
@@ -42,6 +50,11 @@ export default function Analytics() {
   return (
     <Screen>
       <Header back title="Your week" sub="The last 7 days, in plain numbers." />
+      {inTeam(state) && <Segmented value={who} onChange={setWho} options={[['me', 'Me'], ['team', 'Team']]} />}
+      {showTeam ? <TeamWeek /> : total === 0 && focusMins === 0 && !sample ? (
+        <EmptyState icon="chart" title="Your week will appear here" body="Finish a few tasks and try a focus session. Ugent turns them into simple numbers and learns your best time of day."
+          action={{ label: 'Go to tasks', onPress: () => router.navigate('/tasks') }} />
+      ) : <>
       {sample && <Pill label="Sample data" />}
       <View style={{ flexDirection: 'row', gap: 10 }}>
         {stat(String(total), 'Tasks done')}
@@ -85,6 +98,42 @@ export default function Analytics() {
             : 'Learning is off, so Ugent uses the best time you chose. Turn learning on in Settings to let Ugent adjust.'}</T>
         </Card>
       </Section>
+      </>}
     </Screen>
+  );
+}
+
+/** Advanced analytics for the Team plan. */
+function TeamWeek() {
+  const c = useColors();
+  const { team, teamStats } = useApp();
+  if (!team || !teamStats) return <T muted>Loading team numbers… Connect to the internet if this takes long.</T>;
+  const max = Math.max(1, ...teamStats.members.map((m) => m.doneThisWeek));
+  return (
+    <>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {[[teamStats.totals.doneThisWeek, 'Team tasks done'], [teamStats.totals.open, 'Open'], [teamStats.totals.unassigned, 'Unassigned']].map(([n, l]) => (
+          <View key={String(l)} style={{ flex: 1, backgroundColor: c.surface, borderRadius: radius.md, padding: 14, gap: 2 }}>
+            <T v="title" style={{ fontSize: 26 }}>{String(n)}</T>
+            <T v="small" muted style={{ fontFamily: font.semibold, fontSize: 13 }}>{l}</T>
+          </View>
+        ))}
+      </View>
+      <Section title="Done this week, by person">
+        <View style={{ gap: 12 }}>
+          {teamStats.members.map((m) => (
+            <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Avatar name={m.name} size={28} color={memberColor(m.id, team)} />
+              <T v="small" style={{ width: 80 }} numberOfLines={1}>{m.name}</T>
+              <View style={{ flex: 1, height: 12, backgroundColor: c.surface, borderTopRightRadius: 4, borderBottomRightRadius: 4, overflow: 'hidden' }}>
+                <View style={{ width: `${(m.doneThisWeek / max) * 100}%`, height: '100%', backgroundColor: memberColor(m.id, team), borderTopRightRadius: 4, borderBottomRightRadius: 4 }} />
+              </View>
+              <T v="small" style={{ width: 28, textAlign: 'right', fontFamily: font.semibold }}>{m.doneThisWeek}</T>
+            </View>
+          ))}
+        </View>
+      </Section>
+      <Card tint><T v="small">Team numbers count shared team tasks only. Personal tasks stay private.</T></Card>
+    </>
   );
 }

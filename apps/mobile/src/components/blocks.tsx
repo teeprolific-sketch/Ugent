@@ -60,6 +60,9 @@ export function ActionLines({ actions }: { actions: Action[] }) {
         if (a.type === 'reschedule') return a.moves.map((m, j) => line('clock', `${m.title}: ${moveLine(m, lang)}`, `${i}-${j}`));
         if (a.type === 'moveEvent') return [line('clock', `${a.move.title}: ${moveLine(a.move, lang)}`, `${i}`)];
         if (a.type === 'completeTask') return [line('check', `Mark done: ${a.title}`, `${i}`)];
+        if (a.type === 'call') return [line('chat', `Call ${a.name}${a.phone ? ` (${a.phone})` : ''}`, `${i}`)];
+        if (a.type === 'message') return [line('send', `${a.channel === 'sms' ? 'SMS' : 'WhatsApp'} to ${a.name ?? 'someone'}: "${a.text}"`, `${i}`)];
+        if (a.type === 'directions') return [line('car', `Directions to ${a.destination} in Google Maps`, `${i}`)];
         return [];
       })}
     </View>

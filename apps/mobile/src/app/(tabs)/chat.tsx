@@ -8,6 +8,8 @@ import { ActionLines, DraftBlock } from '@/components/blocks';
 import { Button, ButtonRow, Chip, IconButton, Pill, T, useToast } from '@/components/ui';
 import { useLang, useOnline, useT } from '@/hooks';
 import { askUgent } from '@/lib/chat';
+import { useRunActions } from '@/lib/useRunActions';
+import { EmptyState } from '@/components/kit';
 import { speak, useVoiceInput } from '@/lib/voice';
 import type { ChatMessage } from '@/store';
 import { useApp } from '@/store';
@@ -32,7 +34,8 @@ export default function Chat() {
   const messages = useApp((s) => s.messages);
   const profile = useApp((s) => s.profile);
   const settings = useApp((s) => s.settings);
-  const { pushMessage, updateMessage, clearChat, runActions, restore, startFocus } = useApp.getState();
+  const { pushMessage, updateMessage, clearChat } = useApp.getState();
+  const runMessage = useRunActions();
   const [text, setText] = useState('');
   const [thinking, setThinking] = useState(false);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -43,13 +46,7 @@ export default function Chat() {
     }
   }, [lang, profile.name, pushMessage]);
 
-  const run = useCallback((m: ChatMessage) => {
-    if (!m.actions?.length) return;
-    const { focusMins } = runActions(m.actions);
-    updateMessage(m.id, { status: 'done' });
-    toast(t('done'), () => { restore(); updateMessage(m.id, { status: 'cancelled' }); });
-    if (focusMins) { startFocus(focusMins); setTimeout(() => router.push('/focus'), 400); }
-  }, [runActions, updateMessage, toast, t, restore, startFocus]);
+  const run = useCallback((m: ChatMessage) => { void runMessage(m); }, [runMessage]);
 
   const send = useCallback(async (raw: string) => {
     const msg = raw.trim();
@@ -77,11 +74,17 @@ export default function Chat() {
           <T v="title">Ugent</T>
           <T v="small" muted>{online && !settings.lowData ? 'Online' : 'Offline, still working'} · {langMeta(lang).native}</T>
         </View>
-        <IconButton icon="trash" label="Clear chat" onPress={() => { clearChat(); }} />
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton icon="mic" label="Voice mode" color={c.skyInk} onPress={() => router.push('/voice')} />
+          <IconButton icon="trash" label="Clear chat" onPress={() => { clearChat(); }} />
+        </View>
       </View>
 
       <ScrollView ref={scroll} contentContainerStyle={{ padding: space, gap: 14 }} keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
+        {messages.length <= 1 && (
+          <EmptyState icon="chat" title="Ask Ugent anything about your day" body="Plan, reschedule, set reminders, call or message someone, or get directions. Type, or tap the microphone to talk." />
+        )}
         {messages.map((m) => m.from === 'me' ? (
           <View key={m.id} style={{ alignSelf: 'flex-end', maxWidth: '86%', backgroundColor: c.surface2, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 18, borderBottomRightRadius: 4 }}>
             <T>{m.text}</T>

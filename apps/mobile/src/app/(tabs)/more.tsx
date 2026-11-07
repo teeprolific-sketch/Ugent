@@ -1,32 +1,47 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { View } from 'react-native';
-import { Header, List, Pill, Row, Screen, Section, T } from '@/components/ui';
-import { effectivePlan, useApp } from '@/store';
-
-const PLAN_NAME = { free: 'the free plan', pro: 'Pro', team: 'Team' } as const;
+import { Pressable, View } from 'react-native';
+import { Icon } from '@/components/Icon';
+import { Avatar, Group, PlanBadge } from '@/components/kit';
+import { Header, Row, Screen, T } from '@/components/ui';
+import { CONNECTIONS, statusOf } from '@/lib/connections';
+import { effectivePlan, inTeam, useApp } from '@/store';
+import { radius, useColors } from '@/theme';
 
 export default function More() {
+  const c = useColors();
   const state = useApp();
   const plan = effectivePlan(state);
+  const connected = CONNECTIONS.filter((x) => statusOf(x).on).length;
   return (
     <Screen>
       <Header title="More" />
-      <List>
+      <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Your profile"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.surface, borderRadius: radius.lg, padding: 16 }}>
+        <Avatar name={state.profile.name || 'You'} size={52} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <T v="h3">{state.profile.name || 'Your profile'}</T>
+          <PlanBadge plan={plan} />
+        </View>
+        <Icon name="chevR" color={c.muted} size={20} />
+      </Pressable>
+      <Group>
+        <Row icon="more" title="Me AI ecosystem" sub="Sleek, Domestica I, Afrika I, ID'd" chevron onPress={() => router.push('/ecosystem')} />
+        <Row icon="link" title="Connected apps" sub={connected ? `${connected} connected` : 'WhatsApp, Maps, Calendar and more'} chevron onPress={() => router.push('/connections')} />
         <Row icon="chart" title="Your week" sub="Simple numbers about your time" chevron onPress={() => router.push('/analytics')} />
-        <Row icon="tag" title="Plans and pricing" sub={`You're on ${PLAN_NAME[plan]}`} chevron onPress={() => router.push('/pricing')} />
-        {(plan === 'team' || state.me?.teamId) && <Row icon="users" title="Your team" sub="Shared calendar and members" chevron onPress={() => router.push('/team')} />}
-        <Row icon="shield" title="Settings and privacy" sub="Language, voice, data and control" chevron onPress={() => router.push('/settings')} />
-      </List>
-      <Section title="Connect your Me AI devices">
-        <T v="small" muted>Ugent will work with the rest of the Me AI family.</T>
-        <List>
-          <Row title="Sleek" sub="Find verified mechanics, cleaners and carpenters" right={<Pill label="Coming soon" />} />
-          <Row title="Domestica I" sub="Your home robot that sweeps, mops and maps rooms" right={<Pill label="Coming soon" />} />
-          <Row title="Afrika I" sub="Farm patrol by air and land" right={<Pill label="Coming soon" />} />
-        </List>
-      </Section>
-      <View><T v="small" muted center>Ugent by Me AI · Version {Constants.expoConfig?.version ?? '1.0.0'}</T></View>
+      </Group>
+      {inTeam(state) && (
+        <Group title="Team">
+          <Row icon="chart" title="Team dashboard" sub="Progress and shared updates" chevron onPress={() => router.push('/team')} />
+          <Row icon="users" title={state.me?.teamRole === 'admin' ? 'Members and roles' : 'Members'} chevron onPress={() => router.push('/team-admin')} />
+        </Group>
+      )}
+      <Group>
+        <Row icon="tag" title="Plans and pricing" sub={plan === 'free' ? 'Pro $2 · Team $21' : `You're on ${plan === 'pro' ? 'Pro' : 'Team'}`} chevron onPress={() => router.push('/pricing')} />
+        <Row icon="shield" title="Settings" sub="Notifications, language, privacy" chevron onPress={() => router.push('/settings')} />
+        <Row icon="info" title="Help and support" chevron onPress={() => router.push('/help')} />
+      </Group>
+      <T v="small" muted center>Ugent by Me AI · Version {Constants.expoConfig?.version ?? '1.0.0'}</T>
     </Screen>
   );
 }
