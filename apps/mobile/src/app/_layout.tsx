@@ -17,6 +17,8 @@ import { setFontLanguage, useColors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 initNotifications();
+// On web, skip NetInfo's reachability ping (it fetches the site root); Ugent only needs "connected or not".
+if (Platform.OS === 'web') NetInfo.configure({ reachabilityShouldRun: () => false });
 
 export default function RootLayout() {
   const c = useColors();
