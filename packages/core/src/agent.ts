@@ -97,6 +97,10 @@ export function extractTitle(text: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
+const cap = (x: string) => (x ? x.charAt(0).toUpperCase() + x.slice(1) : x);
+/** A phone number written in the message, if any ("call 0803 123 4567"). */
+const phoneIn = (x: string) => { const m = x.match(/\+?\d[\d\s-]{6,}\d/); return m ? m[0].replace(/[\s-]/g, '') : null; };
+
 export interface AgentContext {
   lang: Lang;
   now: Date;
@@ -140,14 +144,28 @@ export function respond(text: string, state: PlannerState, ctx: AgentContext): A
     return reply('focus', { m: mins }, [{ type: 'focus', mins }]);
   }
 
-  // 4. Draft a message to someone.
-  const msg = text.match(/^\s*(?:please\s+)?(?:tell|message|text|whatsapp|sms)\s+([\p{L}'-]+)\s*(?:that\s+|say\s+|to\s+)?(.*)$/iu);
-  if (msg) {
-    const who = msg[1].charAt(0).toUpperCase() + msg[1].slice(1);
-    let body = (msg[2] || '').trim().replace(/^i'?m\b/i, "I'm").replace(/^i\b/, 'I');
-    body = body ? body.charAt(0).toUpperCase() + body.slice(1) : 'Just checking in.';
+  // 4. Real actions through connected apps: call, message, directions. Only when asked to do it now
+  //    (a time or "remind me" makes it a reminder instead, handled below).
+  const now_ = !has(n, P.add) && parseTime(n) === null;
+  const call = text.match(/^\s*(?:please\s+|abeg\s+)?(?:call|ring|phone|dial|pe|kpoo|kpọọ|kira|appelle|appeler)\s+([\p{L}' .-]{1,60}?)\s*(?:now|for me|abeg|biko|please)?[.!?]*\s*$/iu);
+  if (call && now_) {
+    const name = cap(call[1].trim());
+    return reply('callAction', { name }, [{ type: 'call', name, phone: phoneIn(text) }]);
+  }
+  const msg = text.match(/^\s*(?:please\s+)?(tell|message|text|whatsapp|sms)\s+([\p{L}'-]+)\s*(?:that\s+|say\s+|to\s+)?(.*)$/iu);
+  if (msg && now_) {
+    const who = cap(msg[2]);
+    let body = (msg[3] || '').trim().replace(/^i'?m\b/i, "I'm").replace(/^i\b/, 'I');
+    body = body ? cap(body) : 'Just checking in.';
     if (!/[.!?]$/.test(body)) body += '.';
-    return reply('draft', undefined, [], `Hi ${who}, ${body}`);
+    const channel = /^(text|sms)$/i.test(msg[1]) ? 'sms' : 'whatsapp';
+    return reply('messageAction', { name: who, app: channel === 'sms' ? 'SMS' : 'WhatsApp' },
+      [{ type: 'message', channel, name: who, phone: phoneIn(text), text: `Hi ${who}, ${body}` }]);
+  }
+  const dir = text.match(/(?:directions?\s+to|how\s+(?:do|can)\s+i\s+get\s+to|take\s+me\s+to|navigate\s+to|route\s+to|itin[ée]raire\s+(?:vers|pour)|show\s+me\s+(?:the\s+)?(?:way|road)\s+to|road\s+go)\s+(.{2,120}?)[.!?]*\s*$/iu);
+  if (dir) {
+    const place = cap(dir[1].trim());
+    return reply('directionsAction', { place }, [{ type: 'directions', destination: place }]);
   }
 
   // 5. Add a task or a plan.

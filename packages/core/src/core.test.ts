@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMoves, bestTime, computeReschedule, extractTitle, fmtDate, headsUp, parseTime, respond, sampleDay, suggestSlot, t } from './index';
+import { applyMoves, bestTime, computeReschedule, extractTitle, fmtDate, headsUp, parseTime, respond, sampleDay, scamCheck, searchLangs, suggestSlot, t } from './index';
 import type { PlannerState } from './index';
 
 const at = (h: number, m = 0) => new Date(2026, 10, 7, h, m); // Sat 7 Nov 2026
@@ -76,12 +76,45 @@ test('agent replies in the chosen language with actions', () => {
   assert.match(ha.text, /Wuta ta ɗauke/);
   const fr = respond("Rappelle-moi d'appeler Maman à 18h", stateAt(now), { lang: 'fr', now, fmtTime });
   assert.deepEqual(fr.actions[0], { type: 'addEvent', title: 'Appeler Maman', date: '2026-11-07', start: '18:00', dur: 30, kind: 'personal' });
-  const draft = respond("tell Kemi I'm running 10 minutes behind", stateAt(now), { lang: 'en', now, fmtTime });
-  assert.equal(draft.draft, "Hi Kemi, I'm running 10 minutes behind.");
+  const late = respond("I'm stuck in traffic", { ...stateAt(now), events: stateAt(now).events.map((e) => (e.title === 'Client call with Kemi' ? { ...e, start: '11:15' } : e)) }, { lang: 'en', now, fmtTime });
+  assert.match(late.draft ?? '', /running about 45 minutes late for "Client call with Kemi"/);
   assert.equal(respond('this is nice', stateAt(now), { lang: 'en', now, fmtTime }).text, t('en', 'help'));
 });
 
 test('copy: singular counts and empty names', () => {
   assert.equal(t('en', 'traffic', { n: 1 }), 'Traffic happens. I can move 1 plan back 45 minutes.');
   assert.equal(t('en', 'greet', { name: '' }), 'Hi. How can I help today?');
+});
+
+test('real actions: call, message and directions; reminders stay reminders', () => {
+  const now = at(10, 30);
+  const s = stateAt(now);
+  assert.deepEqual(respond('Call Mum', s, { lang: 'en', now, fmtTime }).actions[0], { type: 'call', name: 'Mum', phone: null });
+  const wa = respond("tell Kemi I'm running 10 minutes behind", s, { lang: 'en', now, fmtTime }).actions[0];
+  assert.deepEqual(wa, { type: 'message', channel: 'whatsapp', name: 'Kemi', phone: null, text: "Hi Kemi, I'm running 10 minutes behind." });
+  // A message that mentions a time is not sent now; Ugent treats it as a plan instead.
+  assert.notEqual(respond('text Bayo the meeting is at 3', s, { lang: 'en', now, fmtTime }).actions[0]?.type, 'message');
+  assert.equal(respond('sms Bayo I have arrived', s, { lang: 'en', now, fmtTime }).actions[0]?.type, 'message');
+  assert.deepEqual(respond('Directions to Balogun Market', s, { lang: 'en', now, fmtTime }).actions[0], { type: 'directions', destination: 'Balogun Market' });
+  assert.equal(respond('Remind me to call Mum at 6pm', s, { lang: 'en', now, fmtTime }).actions[0].type, 'addEvent');
+  assert.match(respond('Pe Mama', s, { lang: 'yo', now, fmtTime }).text, /Mo lè pe Mama/);
+});
+
+test('language search finds languages by any name', () => {
+  assert.deepEqual(searchLangs('naija').map((l) => l.code), ['pcm']);
+  assert.deepEqual(searchLangs('Yorùbá').map((l) => l.code), ['yo']);
+  assert.deepEqual(searchLangs('franc').map((l) => l.code), ['fr']);
+  assert.equal(searchLangs('').length, 6);
+});
+
+test('scam check flags the classic tricks', () => {
+  assert.equal(scamCheck('URGENT: your account will be blocked. Send your BVN and OTP to our customer care now').level, 'high');
+  assert.equal(scamCheck('Congratulations you have won N500,000 in the MTN promo. Pay processing fee to claim').level, 'high');
+  assert.equal(scamCheck('Hi, see you at church on Sunday').level, 'low');
+});
+
+test('daily rhythm: no plans before the user wakes', () => {
+  const now = at(5, 0);
+  const s = { ...stateAt(now), events: [], day: { start: 8 * 60, end: 20 * 60 } };
+  assert.ok(suggestSlot(s, 'personal', 30, now).start >= '08:00');
 });

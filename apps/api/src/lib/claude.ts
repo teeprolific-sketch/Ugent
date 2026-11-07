@@ -4,7 +4,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import type { Action, AgentReply, ChatRequest, PlannerState, Reason } from '@ugent/core';
-import { addDays, computeReschedule, fmtDate, KINDS, langMeta, lateMessage, REASONS, suggestSlot, wallClock } from '@ugent/core';
+import { addDays, computeReschedule, fmtDate, HUSTLE_LABEL, KINDS, langMeta, lateMessage, REASONS, suggestSlot, wallClock } from '@ugent/core';
 import { z } from 'zod';
 
 const MODEL = 'claude-opus-5-5';
@@ -27,10 +27,13 @@ You can propose actions. The app shows each one to the user, who confirms it bef
 - move_event: move one existing plan. Needs event_id from the list you are given, plus the new date and start.
 - complete_task: the user finished a task. Needs task_id from the list you are given.
 - focus: start a focus session. Needs minutes.
+- call: phone someone now. Needs name; set phone only if the user gave a number. The phone app opens and the user presses call.
+- message: send a WhatsApp or SMS now. Needs channel (whatsapp unless the user says text or SMS), name, and text written as the user would send it. WhatsApp opens with the message ready; the user presses send.
+- directions: open Google Maps directions. Needs destination.
 Fill every field that an action does not use with null. Only use event and task ids that appear in the user's data. Never invent plans the user did not ask for.
-If the user asks for something you cannot do (calls, payments, bookings with other people), say so briefly and suggest what you can do instead, such as adding a reminder.
+If the user asks for something you cannot do (payments, bookings with other people, reading their messages), say so briefly and suggest what you can do instead, such as adding a reminder.
 If the user wants to tell someone they are late or busy, put a short message they can send in draft; otherwise draft is null.
-Sleek (verified artisans), Domestica I (home robot) and Afrika I (farm robot) are Me AI products that are coming soon; if asked, say they are not available yet.`;
+Sleek (verified artisans), Domestica I (home robot), Afrika I (farm robot) and ID'd (scam protection) are Me AI products that are coming soon; if asked, say they are not available yet and can be found in the Ecosystem screen. If a message the user shares looks like a scam (requests for OTP, PIN or BVN, fees to release money, sudden "new number" money requests), warn them plainly.`;
 
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
 
@@ -46,9 +49,9 @@ const OUTPUT_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['type', 'title', 'date', 'start', 'duration_minutes', 'kind', 'reason', 'minutes', 'event_id', 'task_id'],
+        required: ['type', 'title', 'date', 'start', 'duration_minutes', 'kind', 'reason', 'minutes', 'event_id', 'task_id', 'name', 'phone', 'channel', 'text', 'destination'],
         properties: {
-          type: { type: 'string', enum: ['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus'] },
+          type: { type: 'string', enum: ['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions'] },
           title: nullable({ type: 'string' }),
           date: nullable({ type: 'string', description: 'YYYY-MM-DD' }),
           start: nullable({ type: 'string', description: 'HH:MM, 24-hour' }),
@@ -58,6 +61,11 @@ const OUTPUT_SCHEMA = {
           minutes: nullable({ type: 'integer' }),
           event_id: nullable({ type: 'string' }),
           task_id: nullable({ type: 'string' }),
+          name: nullable({ type: 'string' }),
+          phone: nullable({ type: 'string' }),
+          channel: nullable({ type: 'string', enum: ['whatsapp', 'sms'] }),
+          text: nullable({ type: 'string' }),
+          destination: nullable({ type: 'string' }),
         },
       },
     },
@@ -68,7 +76,7 @@ const Output = z.object({
   reply: z.string(),
   draft: z.string().nullable(),
   actions: z.array(z.object({
-    type: z.enum(['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus']),
+    type: z.enum(['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions']),
     title: z.string().nullable(),
     date: z.string().nullable(),
     start: z.string().nullable(),
@@ -78,6 +86,11 @@ const Output = z.object({
     minutes: z.number().int().nullable(),
     event_id: z.string().nullable(),
     task_id: z.string().nullable(),
+    name: z.string().nullable(),
+    phone: z.string().nullable(),
+    channel: z.enum(['whatsapp', 'sms']).nullable(),
+    text: z.string().nullable(),
+    destination: z.string().nullable(),
   })),
 });
 type Output = z.infer<typeof Output>;
@@ -93,7 +106,7 @@ function contextBlock(req: ChatRequest, state: PlannerState, now: Date): string 
   const evs = state.events
     .filter((e) => !e.deleted && (e.date === d0 || e.date === d1))
     .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
-    .map((e) => `- [${e.id}] ${e.date === d0 ? 'today' : 'tomorrow'} ${e.start} (${e.dur} min, ${e.kind}${e.fixed ? ', fixed time' : ''}): ${e.title}`);
+    .map((e) => `- [${e.id}] ${e.date === d0 ? 'today' : 'tomorrow'} ${e.start} (${e.dur} min, ${e.kind}${e.fixed || e.external ? ', fixed time' : ''}${e.location ? `, at ${e.location}` : ''}): ${e.title}`);
   const tks = state.tasks
     .filter((x) => !x.deleted && !x.done)
     .slice(0, 40)
@@ -102,7 +115,7 @@ function contextBlock(req: ChatRequest, state: PlannerState, now: Date): string 
     `<user_data>`,
     `Now: ${weekday} ${d0}, ${req.localNow.slice(11)}. Tomorrow is ${d1}.`,
     `Language for your reply: ${langMeta(req.lang).name}.`,
-    `Name: ${state.name || 'not given'}. Best time of day for hard work: ${state.peak}.`,
+    `Name: ${state.name || 'not given'}. Best time of day for hard work: ${state.peak}.${req.state.hustle ? ` Work: ${HUSTLE_LABEL[req.state.hustle].title} (${HUSTLE_LABEL[req.state.hustle].sub}).` : ''}`,
     `Plans today and tomorrow:`,
     evs.length ? evs.join('\n') : '- none',
     `Open tasks:`,
@@ -134,6 +147,12 @@ function toActions(out: Output, state: PlannerState, now: Date): { actions: Acti
     } else if (a.type === 'complete_task' && a.task_id) {
       const tk = state.tasks.find((x) => x.id === a.task_id && !x.deleted && !x.done);
       if (tk) actions.push({ type: 'completeTask', id: tk.id, title: tk.title });
+    } else if (a.type === 'call' && a.name) {
+      actions.push({ type: 'call', name: a.name.slice(0, 80), phone: a.phone?.replace(/[^\d+]/g, '').slice(0, 40) || null });
+    } else if (a.type === 'message' && a.text) {
+      actions.push({ type: 'message', channel: a.channel ?? 'whatsapp', name: a.name?.slice(0, 80) ?? null, phone: a.phone?.replace(/[^\d+]/g, '').slice(0, 40) || null, text: a.text.slice(0, 1000) });
+    } else if (a.type === 'directions' && a.destination) {
+      actions.push({ type: 'directions', destination: a.destination.slice(0, 200) });
     } else if (a.type === 'focus') {
       actions.push({ type: 'focus', mins: Math.min(240, Math.max(5, a.minutes ?? state.focusMins)) });
     }

@@ -35,17 +35,25 @@ export function bestTime(state: Pick<PlannerState, 'log' | 'learn' | 'peak'>, no
 const roundUp = (m: number, step = 15) => Math.ceil(m / step) * step;
 const live = (events: PlanEvent[]) => events.filter((e) => !e.deleted);
 
+let bounds = { start: DAY_START, end: DAY_END };
+/** The user's waking day, if known (from their daily rhythm). */
+const withDay = <T>(state: Pick<PlannerState, 'day'>, fn: () => T): T => {
+  const prev = bounds;
+  bounds = state.day ?? { start: DAY_START, end: DAY_END };
+  try { return fn(); } finally { bounds = prev; }
+};
+
 function freeSlot(events: PlanEvent[], date: DateStr, earliest: number, dur: number, ignore?: Set<string>): number | null {
   const busy = live(events)
     .filter((e) => e.date === date && !(ignore && ignore.has(e.id)))
     .map((e) => [toMin(e.start), toMin(e.start) + e.dur] as const)
     .sort((a, b) => a[0] - b[0]);
-  let t = roundUp(Math.max(earliest, DAY_START));
+  let t = roundUp(Math.max(earliest, bounds.start));
   for (const [s, e] of busy) {
     if (t + dur + BUF <= s) break;
     if (e + BUF > t) t = roundUp(e + BUF);
   }
-  return t + dur <= DAY_END ? t : null;
+  return t + dur <= bounds.end ? t : null;
 }
 
 /** First free time on or after (date, earliest). Rolls to the next day's best time when a day is full. */
@@ -61,11 +69,14 @@ function place(events: PlanEvent[], date: DateStr, earliest: number, dur: number
 
 /** Best slot for a new plan: heavy work goes into the user's best time, everything else into the next gap. */
 export function suggestSlot(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr) {
+  return withDay(state, () => suggestSlotIn(state, kind, dur, now, date));
+}
+function suggestSlotIn(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr) {
   const d0 = fmtDate(now);
   const nowM = minOfDay(now);
   date = date ?? d0;
   const ps = PEAK_START[bestTime(state, now)];
-  let earliest = date === d0 ? nowM + 15 : DAY_START + 60;
+  let earliest = date === d0 ? nowM + 15 : bounds.start + 60;
   if (kind === 'deep') {
     if (date === d0 && nowM > ps + 120) { date = addDays(date, 1); earliest = ps; } else earliest = Math.max(earliest, ps);
   }
@@ -74,9 +85,13 @@ export function suggestSlot(state: PlannerState, kind: Kind, dur: number, now: D
 
 /** Works out what to move for a disruption. Returns the moves; does not change anything. */
 export function computeReschedule(state: PlannerState, reason: Reason, now: Date): { moves: Move[]; fixedSoon: PlanEvent | null } {
+  return withDay(state, () => computeRescheduleIn(state, reason, now));
+}
+function computeRescheduleIn(state: PlannerState, reason: Reason, now: Date): { moves: Move[]; fixedSoon: PlanEvent | null } {
   const d0 = fmtDate(now);
   const nowM = minOfDay(now);
-  const events = live(state.events).map((e) => ({ ...e }));
+  // Plans imported from the phone's calendar belong to someone else's system: never move them.
+  const events = live(state.events).map((e) => (e.external ? { ...e, fixed: true } : { ...e }));
   const upcoming = events
     .filter((e) => e.date === d0 && toMin(e.start) >= nowM - 5)
     .sort((a, b) => toMin(a.start) - toMin(b.start));
@@ -96,7 +111,7 @@ export function computeReschedule(state: PlannerState, reason: Reason, now: Date
     target = () => ({ date: addDays(d0, 1), earliest: ps });
   } else if (reason === 'emergency') {
     pick = upcoming.filter((e) => !e.fixed);
-    target = () => ({ date: addDays(d0, 1), earliest: DAY_START + 60 });
+    target = () => ({ date: addDays(d0, 1), earliest: bounds.start + 60 });
   }
 
   const ignore = new Set(pick.map((e) => e.id));

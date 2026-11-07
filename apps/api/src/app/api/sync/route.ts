@@ -32,16 +32,19 @@ export const POST = handle(async (req: Request) => {
       const row = {
         id: t.id, ownerId: user.id, teamId: teamOf(t.teamId), title: t.title, date: t.date, updatedAt: t.updatedAt,
         deleted: !!t.deleted, sample: !!t.sample, important: t.important, done: t.done, createdAt: t.createdAt, doneAt: t.doneAt ?? null,
+        assigneeId: t.teamId ? t.assigneeId ?? null : null, status: t.status ?? null, updatedBy: user.id,
       };
-      const update = { teamId: row.teamId, title: row.title, date: row.date, updatedAt: row.updatedAt, deleted: row.deleted, sample: row.sample, important: row.important, done: row.done, createdAt: row.createdAt, doneAt: row.doneAt };
+      const update = { teamId: row.teamId, title: row.title, date: row.date, updatedAt: row.updatedAt, deleted: row.deleted, sample: row.sample, important: row.important, done: row.done, createdAt: row.createdAt, doneAt: row.doneAt, assigneeId: row.assigneeId, status: row.status, updatedBy: row.updatedBy };
       await tx.insert(T).values({ ...row, rev: nextRev }).onConflictDoUpdate({ target: T.id, set: { ...update, rev: nextRev }, setWhere: mayWrite(T) });
     }
-    for (const e of input.events) {
+    // Events imported from the phone's own calendar stay on the phone.
+    for (const e of input.events.filter((x) => !x.external)) {
       const row = {
         id: e.id, ownerId: user.id, teamId: teamOf(e.teamId), title: e.title, date: e.date, updatedAt: e.updatedAt,
         deleted: !!e.deleted, sample: !!e.sample, start: e.start, dur: e.dur, kind: e.kind, fixed: e.fixed, needsPower: e.needsPower,
+        location: e.location ?? null, updatedBy: user.id,
       };
-      const update = { teamId: row.teamId, title: row.title, date: row.date, updatedAt: row.updatedAt, deleted: row.deleted, sample: row.sample, start: row.start, dur: row.dur, kind: row.kind, fixed: row.fixed, needsPower: row.needsPower };
+      const update = { teamId: row.teamId, title: row.title, date: row.date, updatedAt: row.updatedAt, deleted: row.deleted, sample: row.sample, start: row.start, dur: row.dur, kind: row.kind, fixed: row.fixed, needsPower: row.needsPower, location: row.location, updatedBy: row.updatedBy };
       await tx.insert(E).values({ ...row, rev: nextRev }).onConflictDoUpdate({ target: E.id, set: { ...update, rev: nextRev }, setWhere: mayWrite(E) });
     }
   });

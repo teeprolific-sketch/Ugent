@@ -101,6 +101,65 @@ r = await call('POST', '/api/sync', { token: B, body: { since: 0, tasks: [], eve
 assert.ok(r.data.events.some((e) => e.title === 'Stock count at the shop'));
 assert.ok(!r.data.events.some((e) => e.id === e1.id));
 step('teams: shared calendar items reach members, private ones do not');
+// Team board: an assigned task with a status reaches the assignee, shows in shared updates and team analytics
+const teamId = r.data.events.find((e) => e.title === 'Stock count at the shop').teamId;
+const boardTask = { id: 'tk-' + randomUUID().slice(0, 8), title: 'Restock rice', important: false, done: false, date: d0, createdAt: now, updatedAt: now, teamId, assigneeId: bId, status: 'doing' };
+await call('POST', '/api/sync', { token: A, body: { since: 0, tasks: [boardTask], events: [] } });
+r = await call('POST', '/api/sync', { token: B, body: { since: 0, tasks: [], events: [] } });
+const got = r.data.tasks.find((x) => x.id === boardTask.id);
+assert.equal(got.assigneeId, bId); assert.equal(got.status, 'doing'); assert.equal(got.ownerId, aId);
+r = await call('GET', '/api/team/feed', { token: B });
+assert.ok(r.data.items.some((i) => i.title === 'Restock rice' && i.by === 'Ada'));
+r = await call('GET', '/api/team/stats', { token: A });
+assert.equal(r.data.members.find((m) => m.id === bId).doing, 1);
+step('teams: task board, shared updates and team analytics');
+
+r = await call('PATCH', `/api/team/members/${aId}`, { token: A, body: { role: 'member' } });
+assert.equal(r.status, 409);
+r = await call('PATCH', `/api/team/members/${bId}`, { token: B, body: { role: 'admin' } });
+assert.equal(r.status, 403);
+r = await call('PATCH', `/api/team/members/${bId}`, { token: A, body: { role: 'admin' } });
+assert.equal(r.data.team.members.find((m) => m.id === bId).role, 'admin');
+r = await call('PATCH', `/api/team/members/${bId}`, { token: A, body: { role: 'member' } });
+assert.equal(r.data.team.members.find((m) => m.id === bId).role, 'member');
+step('teams: admins manage roles; a team always keeps an admin');
+
+// Connected services
+r = await call('GET', '/api/integrations', { token: A });
+const gcal = r.data.items.find((i) => i.provider === 'googleCalendar');
+assert.equal(gcal.connected, false);
+r = await call('POST', '/api/integrations/google/start', { token: A, body: { provider: 'googleCalendar' } });
+assert.equal(r.status, gcal.available ? 200 : 503);
+r = await call('POST', '/api/maps/eta', { token: A, body: { origin: 'Ikeja, Lagos', destination: 'Victoria Island, Lagos' } });
+assert.ok([200, 501].includes(r.status));
+step(`integrations: status list, Google sign-in (${gcal.available ? 'configured' : 'not configured'}), Maps ETA`);
+
+// WhatsApp Business: link a number, focus on, a customer writes, Ugent replies for the owner
+r = await call('PUT', '/api/integrations/whatsapp-business', { token: A, body: { phoneNumberId: '1234567890' + aId.slice(-4), displayNumber: '+234 800 000 0000', autoReplyOn: true, autoReply: "I'm in a meeting. I'll reply soon." } });
+assert.equal(r.status, 200);
+const verify = await fetch(`${BASE}/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=${process.env.WA_VERIFY_TOKEN}&hub.challenge=abc123`);
+assert.equal(await verify.text(), 'abc123');
+await call('POST', '/api/focus', { token: A, body: { until: now + 3600000 } });
+const { createHmac } = await import('node:crypto');
+const waBody = JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: '1234567890' + aId.slice(-4) }, messages: [{ from: '2348031234567', type: 'text', text: { body: 'Do you have rice in stock?' } }] } }] }] });
+const sig = 'sha256=' + createHmac('sha256', process.env.WA_APP_SECRET).update(waBody).digest('hex');
+let wr = await fetch(`${BASE}/api/webhooks/whatsapp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-hub-signature-256': sig }, body: waBody });
+const wj = await wr.json();
+assert.equal(wj.received, 1); assert.equal(wj.wouldReply, 1);
+wr = await fetch(`${BASE}/api/webhooks/whatsapp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=forged' }, body: waBody });
+assert.equal(wr.status, 401);
+r = await call('GET', '/api/integrations/whatsapp-business', { token: A });
+assert.equal(r.data.inbox[0].text, 'Do you have rice in stock?');
+await call('POST', '/api/focus', { token: A, body: { until: null } });
+step('whatsapp business: signed webhooks only, auto-reply during focus, customer inbox');
+
+// Ecosystem waitlist and support
+r = await call('POST', '/api/waitlist', { token: B, body: { product: 'sleek' } });
+assert.deepEqual(r.data.joined, ['sleek']);
+r = await call('POST', '/api/support', { token: B, body: { topic: 'question', message: 'How do I share a plan with my team?' } });
+assert.equal(r.status, 201);
+step('ecosystem waitlist and support requests');
+
 r = await call('DELETE', `/api/team/members/${aId}`, { token: B });
 assert.equal(r.status, 403);
 r = await call('DELETE', `/api/team/members/${bId}`, { token: A });

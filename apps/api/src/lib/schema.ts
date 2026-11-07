@@ -1,4 +1,4 @@
-import { bigint, boolean, index, integer, pgSequence, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, pgSequence, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 
 /** Bumped on every write so clients can pull "everything since my cursor". */
 export const revSeq = pgSequence('ugent_rev');
@@ -10,6 +10,12 @@ export const users = pgTable('users', {
   name: text('name').notNull().default(''),
   lang: text('lang').notNull().default('en'),
   peak: text('peak').notNull().default('morning'),
+  hustle: text('hustle'),
+  /** Daily rhythm, minutes after midnight. */
+  wake: integer('wake'),
+  sleep: integer('sleep'),
+  /** While set and in the future, WhatsApp Business auto-replies on the user's behalf. */
+  focusUntil: timestamp('focus_until', { withTimezone: true }),
   /** free | pro | team. Set by the RevenueCat webhook. */
   plan: text('plan').notNull().default('free'),
   planExpiresAt: timestamp('plan_expires_at', { withTimezone: true }),
@@ -39,6 +45,7 @@ const syncColumns = {
   deleted: boolean('deleted').notNull().default(false),
   sample: boolean('sample').notNull().default(false),
   rev: bigint('rev', { mode: 'number' }).notNull(),
+  updatedBy: text('updated_by'),
 };
 
 export const tasks = pgTable('tasks', {
@@ -47,6 +54,8 @@ export const tasks = pgTable('tasks', {
   done: boolean('done').notNull().default(false),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   doneAt: bigint('done_at', { mode: 'number' }),
+  assigneeId: text('assignee_id'),
+  status: text('status'),
 }, (t) => [index('tasks_owner_rev').on(t.ownerId, t.rev), index('tasks_team_rev').on(t.teamId, t.rev)]);
 
 export const events = pgTable('events', {
@@ -56,4 +65,53 @@ export const events = pgTable('events', {
   kind: text('kind').notNull(),
   fixed: boolean('fixed').notNull().default(false),
   needsPower: boolean('needs_power').notNull().default(false),
+  location: text('location'),
 }, (t) => [index('events_owner_rev').on(t.ownerId, t.rev), index('events_team_rev').on(t.teamId, t.rev)]);
+
+/** Third-party accounts a user has connected (Google Calendar, Gmail, Google Tasks). Tokens never leave the server. */
+export const connections = pgTable('connections', {
+  userId: text('user_id').notNull(),
+  provider: text('provider').notNull(),
+  account: text('account'),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  scopes: text('scopes').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.provider] })]);
+
+/** A WhatsApp Business number managed through Ugent (Meta Cloud API). */
+export const waBusiness = pgTable('wa_business', {
+  userId: text('user_id').primaryKey(),
+  phoneNumberId: text('phone_number_id').notNull().unique(),
+  displayNumber: text('display_number').notNull().default(''),
+  autoReplyOn: boolean('auto_reply_on').notNull().default(true),
+  autoReply: text('auto_reply').notNull().default("Thanks for your message. I'm focused on work right now and will reply soon."),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Customer messages that arrived on a connected WhatsApp Business number. */
+export const waInbox = pgTable('wa_inbox', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  from: text('from_number').notNull(),
+  text: text('text').notNull().default(''),
+  autoReplied: boolean('auto_replied').notNull().default(false),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('wa_inbox_user_at').on(t.userId, t.at)]);
+
+/** Waitlists for Me AI products that are not out yet (Sleek, Domestica I, Afrika I, ID'd). */
+export const waitlist = pgTable('waitlist', {
+  userId: text('user_id').notNull(),
+  product: text('product').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.product] })]);
+
+export const supportRequests = pgTable('support_requests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  topic: text('topic').notNull(),
+  message: text('message').notNull(),
+  contact: text('contact'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

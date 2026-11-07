@@ -21,7 +21,7 @@ export const POST = handle(async (req: Request) => {
   const input = await body(req, ChatRequest);
   const state: PlannerState = {
     events: input.state.events, tasks: input.state.tasks, log: { completions: input.state.completions },
-    peak: input.state.peak, learn: input.state.learn, focusMins: input.state.focusMins, name: input.state.name,
+    peak: input.state.peak, learn: input.state.learn, focusMins: input.state.focusMins, name: input.state.name, day: input.state.day,
   };
   const day = input.localNow.slice(0, 10);
   const limit = CHAT_LIMIT[effectivePlan(user)];

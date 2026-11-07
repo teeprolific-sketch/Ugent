@@ -15,6 +15,22 @@ export type Reason = (typeof REASONS)[number];
 export const PLANS = ['free', 'pro', 'team'] as const;
 export type Plan = (typeof PLANS)[number];
 
+/** How the user earns a living; shapes Ugent's defaults and suggestions. */
+export const HUSTLES = ['office', 'business', 'freelance', 'shift', 'student', 'farmer', 'home'] as const;
+export type Hustle = (typeof HUSTLES)[number];
+export const HUSTLE_LABEL: Record<Hustle, { title: string; sub: string }> = {
+  office: { title: '9 to 5', sub: 'Office or salaried job' },
+  business: { title: 'Business owner or trader', sub: 'Shop, market or my own company' },
+  freelance: { title: 'Freelance or gig work', sub: 'Clients, rides, deliveries, creative work' },
+  shift: { title: 'Shift work', sub: 'Hospital, security, factory, call centre' },
+  student: { title: 'Student', sub: 'School, university or exams' },
+  farmer: { title: 'Farmer', sub: 'Crops, livestock or agribusiness' },
+  home: { title: 'Home and family', sub: 'Running the home, caring for others' },
+};
+
+export const TASK_STATUS = ['todo', 'doing', 'done'] as const;
+export type TaskStatus = (typeof TASK_STATUS)[number];
+
 /** YYYY-MM-DD in the user's local time. */
 export type DateStr = string;
 /** HH:MM, 24-hour, local time. */
@@ -35,6 +51,12 @@ export const TaskSchema = z.object({
   deleted: z.boolean().optional(),
   sample: z.boolean().optional(),
   teamId: z.string().nullable().optional(),
+  /** Team tasks: who it is assigned to and where it sits on the board. */
+  assigneeId: z.string().nullable().optional(),
+  status: z.enum(TASK_STATUS).optional(),
+  /** Set by the server: who owns and who last changed the item. */
+  ownerId: z.string().optional(),
+  updatedBy: z.string().nullable().optional(),
 });
 export type Task = z.infer<typeof TaskSchema>;
 
@@ -51,6 +73,12 @@ export const EventSchema = z.object({
   deleted: z.boolean().optional(),
   sample: z.boolean().optional(),
   teamId: z.string().nullable().optional(),
+  /** Free-text place, e.g. "Balogun Market, Lagos". Used for directions and leave-by times. */
+  location: z.string().max(200).nullable().optional(),
+  /** Imported from the phone's calendar; shown but never moved or synced. */
+  external: z.boolean().optional(),
+  ownerId: z.string().optional(),
+  updatedBy: z.string().nullable().optional(),
 });
 export type PlanEvent = z.infer<typeof EventSchema>;
 
@@ -74,6 +102,8 @@ export interface PlannerState {
   learn: boolean;
   focusMins: number;
   name: string;
+  /** Waking day in minutes after midnight. Defaults to 07:00 to 21:30. */
+  day?: { start: number; end: number };
 }
 
 export interface Move { id: string; title: string; fromDate: DateStr; from: TimeStr; toDate: DateStr; to: TimeStr }
@@ -86,6 +116,10 @@ export const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('focus'), mins: z.number().int().min(5).max(240) }),
   z.object({ type: z.literal('moveEvent'), move: z.object({ id: z.string(), title: z.string(), fromDate: dateStr, from: timeStr, toDate: dateStr, to: timeStr }) }),
   z.object({ type: z.literal('completeTask'), id: z.string(), title: z.string() }),
+  /** Real-world actions through connected apps. The phone opens the app; the user presses send or call. */
+  z.object({ type: z.literal('call'), name: z.string().min(1).max(80), phone: z.string().max(40).nullable() }),
+  z.object({ type: z.literal('message'), channel: z.enum(['whatsapp', 'sms']), name: z.string().max(80).nullable(), phone: z.string().max(40).nullable(), text: z.string().min(1).max(1000) }),
+  z.object({ type: z.literal('directions'), destination: z.string().min(1).max(200) }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 

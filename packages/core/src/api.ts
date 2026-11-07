@@ -1,6 +1,6 @@
 /* The contract between the mobile app and the API. Both sides validate with these schemas. */
 import { z } from 'zod';
-import { EventSchema, LANGS, PEAKS, PLANS, TaskSchema } from './types';
+import { EventSchema, HUSTLES, LANGS, PEAKS, PLANS, TaskSchema } from './types';
 
 export const DeviceAuthRequest = z.object({
   deviceId: z.string().min(8).max(128),
@@ -35,6 +35,8 @@ export const ChatRequest = z.object({
     peak: z.enum(PEAKS),
     learn: z.boolean(),
     focusMins: z.number().int().min(5).max(240),
+    hustle: z.enum(HUSTLES).nullable().optional(),
+    day: z.object({ start: z.number().int().min(0).max(1439), end: z.number().int().min(0).max(1439) }).optional(),
     events: z.array(EventSchema).max(300),
     tasks: z.array(TaskSchema).max(300),
     completions: z.array(z.object({ t: z.number() })).max(500),
@@ -47,7 +49,12 @@ export const SyncRequest = z.object({
   since: z.number().int().min(0),
   tasks: z.array(TaskSchema).max(1000),
   events: z.array(EventSchema).max(1000),
-  profile: z.object({ name: z.string().max(80), lang: z.enum(LANGS), peak: z.enum(PEAKS) }).optional(),
+  profile: z.object({
+    name: z.string().max(80), lang: z.enum(LANGS), peak: z.enum(PEAKS),
+    hustle: z.enum(HUSTLES).nullable().optional(),
+    wake: z.number().int().min(0).max(1439).optional(),
+    sleep: z.number().int().min(0).max(1439).optional(),
+  }).optional(),
 });
 export type SyncRequest = z.infer<typeof SyncRequest>;
 
@@ -58,6 +65,52 @@ export const SyncResponse = z.object({
   me: Me,
 });
 export type SyncResponse = z.infer<typeof SyncResponse>;
+
+export const TeamRoleRequest = z.object({ role: z.enum(['admin', 'member']) });
+
+export const TeamFeedItem = z.object({
+  kind: z.enum(['task', 'event']), id: z.string(), title: z.string(), by: z.string(), at: z.number(),
+  what: z.enum(['added', 'updated', 'done', 'deleted']),
+});
+export type TeamFeedItem = z.infer<typeof TeamFeedItem>;
+
+export const TeamMemberStats = z.object({
+  id: z.string(), name: z.string(), doneThisWeek: z.number(), open: z.number(), doing: z.number(), plansThisWeek: z.number(),
+});
+export type TeamMemberStats = z.infer<typeof TeamMemberStats>;
+
+export const PRODUCTS = ['sleek', 'domestica', 'afrika', 'idd'] as const;
+export type Product = (typeof PRODUCTS)[number];
+export const WaitlistRequest = z.object({ product: z.enum(PRODUCTS) });
+
+export const SupportRequest = z.object({
+  topic: z.enum(['question', 'problem', 'billing', 'idea', 'privacy']),
+  message: z.string().min(5).max(4000),
+  contact: z.string().max(120).optional(),
+});
+
+export const INTEGRATIONS = ['googleCalendar', 'gmail', 'googleTasks', 'whatsappBusiness', 'googleMaps'] as const;
+export type CloudIntegration = (typeof INTEGRATIONS)[number];
+export const IntegrationStatus = z.object({
+  provider: z.enum(INTEGRATIONS),
+  /** Me AI has set this service up on the server. */
+  available: z.boolean(),
+  connected: z.boolean(),
+  account: z.string().nullable(),
+});
+export type IntegrationStatus = z.infer<typeof IntegrationStatus>;
+
+export const WaBusinessSettings = z.object({
+  phoneNumberId: z.string().min(5).max(40),
+  displayNumber: z.string().max(40),
+  autoReplyOn: z.boolean(),
+  autoReply: z.string().min(1).max(600),
+});
+
+export const EtaRequest = z.object({
+  origin: z.union([z.string().min(2).max(200), z.object({ lat: z.number(), lng: z.number() })]),
+  destination: z.string().min(2).max(200),
+});
 
 export const TeamCreateRequest = z.object({ name: z.string().min(1).max(80) });
 export const TeamJoinRequest = z.object({ code: z.string().min(4).max(16) });

@@ -3,18 +3,26 @@
  */
 import type { Lang } from './types';
 
-export interface LangMeta { code: Lang; name: string; native: string; locale: string; speech: string }
+export interface LangMeta { code: Lang; name: string; native: string; locale: string; speech: string; aliases: string[] }
 
 export const LANG_META: LangMeta[] = [
-  { code: 'en', name: 'English', native: 'English', locale: 'en-NG', speech: 'en-NG' },
-  { code: 'pcm', name: 'Pidgin', native: 'Naija Pidgin', locale: 'en-NG', speech: 'en-NG' },
-  { code: 'yo', name: 'Yoruba', native: 'Yorùbá', locale: 'yo-NG', speech: 'yo-NG' },
-  { code: 'ig', name: 'Igbo', native: 'Asụsụ Igbo', locale: 'ig-NG', speech: 'ig-NG' },
-  { code: 'ha', name: 'Hausa', native: 'Harshen Hausa', locale: 'ha-NG', speech: 'ha-NG' },
-  { code: 'fr', name: 'French', native: 'Français', locale: 'fr-FR', speech: 'fr-FR' },
+  { code: 'en', name: 'English', native: 'English', locale: 'en-NG', speech: 'en-NG', aliases: ['english', 'oyinbo'] },
+  { code: 'pcm', name: 'Pidgin', native: 'Naija Pidgin', locale: 'en-NG', speech: 'en-NG', aliases: ['pidgin', 'naija', 'broken english', 'pijin'] },
+  { code: 'yo', name: 'Yoruba', native: 'Yorùbá', locale: 'yo-NG', speech: 'yo-NG', aliases: ['yoruba', 'yorouba'] },
+  { code: 'ig', name: 'Igbo', native: 'Asụsụ Igbo', locale: 'ig-NG', speech: 'ig-NG', aliases: ['igbo', 'ibo'] },
+  { code: 'ha', name: 'Hausa', native: 'Harshen Hausa', locale: 'ha-NG', speech: 'ha-NG', aliases: ['hausa', 'haoussa'] },
+  { code: 'fr', name: 'French', native: 'Français', locale: 'fr-FR', speech: 'fr-FR', aliases: ['french', 'francais', 'français'] },
 ];
 
 export const langMeta = (code: Lang): LangMeta => LANG_META.find((l) => l.code === code) ?? LANG_META[0];
+
+const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+/** Languages matching a search ("pidgin", "yoruba", "franc"); every language for an empty query. */
+export function searchLangs(query: string): LangMeta[] {
+  const q = fold(query);
+  if (!q) return LANG_META;
+  return LANG_META.filter((l) => [l.name, l.native, l.code, ...l.aliases].some((x) => fold(x).includes(q)));
+}
 
 const T: Record<Lang, Record<string, string>> = {
     en: {
@@ -47,6 +55,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Charge your laptop and power bank before {title} at {time}, in case power goes.',
       headsPeak: 'Your best energy is in the {peak}. I keep that time for important work.',
       'peak.morning': 'morning', 'peak.afternoon': 'afternoon', 'peak.evening': 'evening',
+      callAction: 'I can call {name} for you.',
+      messageAction: 'I wrote a message for {name}. I will open {app} so you can send it.',
+      directionsAction: 'I can open directions to {place}.',
       today: 'today', tomorrow: 'tomorrow',
     },
     pcm: {
@@ -79,6 +90,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Charge your laptop and power bank before {title} by {time}, in case light go.',
       headsPeak: 'Your body dey strong pass for {peak}. I keep that time for important work.',
       'peak.morning': 'morning', 'peak.afternoon': 'afternoon', 'peak.evening': 'evening',
+      callAction: 'I fit call {name} for you.',
+      messageAction: 'I don write message for {name}. I go open {app} make you send am.',
+      directionsAction: 'I fit show you road go {place}.',
       today: 'today', tomorrow: 'tomorrow',
     },
     yo: {
@@ -111,6 +125,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Gba iná sí kọ̀ǹpútà àti power bank rẹ ṣáájú {title} ní {time}, bí iná bá lọ.',
       headsPeak: 'Agbára rẹ ga jù ní {peak}. Mo pa àkókò yẹn mọ́ fún iṣẹ́ pàtàkì.',
       'peak.morning': 'àárọ̀', 'peak.afternoon': 'ọ̀sán', 'peak.evening': 'ìrọ̀lẹ́',
+      callAction: 'Mo lè pe {name} fún ọ.',
+      messageAction: 'Mo ti kọ ọ̀rọ̀ fún {name}. Màá ṣí {app} kí o lè fi ránṣẹ́.',
+      directionsAction: 'Mo lè fi ọ̀nà sí {place} hàn ọ́.',
       today: 'lónìí', tomorrow: 'lọ́la',
     },
     ig: {
@@ -143,6 +160,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Chaja laptọọpụ gị na power bank tupu {title} na {time}, ma ọkụ anyụọ.',
       headsPeak: 'Ike gị kachasị n\'{peak}. Ana m edobe oge ahụ maka ọrụ dị mkpa.',
       'peak.morning': 'ụtụtụ', 'peak.afternoon': 'ehihie', 'peak.evening': 'mgbede',
+      callAction: 'Enwere m ike ịkpọ {name} maka gị.',
+      messageAction: 'Edeela m ozi maka {name}. M ga-emeghe {app} ka ị zipu ya.',
+      directionsAction: 'Enwere m ike igosi gị ụzọ gaa {place}.',
       today: 'taa', tomorrow: 'echi',
     },
     ha: {
@@ -175,6 +195,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Ka caji kwamfuta da power bank kafin {title} da {time}, idan wuta ta ɗauke.',
       headsPeak: 'Ƙarfinka ya fi yawa da {peak}. Na ajiye wannan lokaci don muhimman ayyuka.',
       'peak.morning': 'safe', 'peak.afternoon': 'rana', 'peak.evening': 'yamma',
+      callAction: 'Zan iya kiran {name} maka.',
+      messageAction: 'Na rubuta saƙo don {name}. Zan buɗe {app} don ka aika.',
+      directionsAction: 'Zan iya nuna maka hanyar zuwa {place}.',
       today: 'yau', tomorrow: 'gobe',
     },
     fr: {
@@ -207,6 +230,9 @@ const T: Record<Lang, Record<string, string>> = {
       headsPower: 'Chargez votre ordinateur et votre batterie avant {title} à {time}, en cas de coupure.',
       headsPeak: 'Votre énergie est au plus haut le {peak}. Je garde ce moment pour l\'essentiel.',
       'peak.morning': 'matin', 'peak.afternoon': 'après-midi', 'peak.evening': 'soir',
+      callAction: 'Je peux appeler {name} pour vous.',
+      messageAction: 'J\'ai rédigé un message pour {name}. J\'ouvre {app} pour que vous l\'envoyiez.',
+      directionsAction: 'Je peux ouvrir l\'itinéraire vers {place}.',
       today: 'aujourd\'hui', tomorrow: 'demain',
     },
   };

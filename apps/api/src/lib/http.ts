@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation';
 import type { z } from 'zod';
 
 export class HttpError extends Error {
@@ -24,6 +25,8 @@ export function handle<A extends unknown[]>(fn: (...args: A) => Promise<Response
     try {
       return await fn(...args);
     } catch (e) {
+      // Let Next.js's own control-flow signals (such as "this route is dynamic") through.
+      unstable_rethrow(e);
       if (e instanceof HttpError) return json({ error: e.code, message: e.message }, e.status);
       console.error(e);
       return json({ error: 'server_error', message: 'Something went wrong on our side. Try again.' }, 500);

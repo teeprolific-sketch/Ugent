@@ -14,6 +14,11 @@ export const DELETE = handle(async (req: Request) => {
     if (user.teamId) await leaveTeam(tx, user);
     await tx.delete(schema.tasks).where(eq(schema.tasks.ownerId, user.id));
     await tx.delete(schema.events).where(eq(schema.events.ownerId, user.id));
+    await tx.delete(schema.connections).where(eq(schema.connections.userId, user.id));
+    await tx.delete(schema.waBusiness).where(eq(schema.waBusiness.userId, user.id));
+    await tx.delete(schema.waInbox).where(eq(schema.waInbox.userId, user.id));
+    await tx.delete(schema.waitlist).where(eq(schema.waitlist.userId, user.id));
+    await tx.delete(schema.supportRequests).where(eq(schema.supportRequests.userId, user.id));
     await tx.delete(schema.users).where(and(eq(schema.users.id, user.id)));
   });
   return json({ deleted: true });

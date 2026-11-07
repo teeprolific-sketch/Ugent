@@ -34,3 +34,16 @@ export async function requireUser(req: Request): Promise<User> {
   if (!user) throw new HttpError(401, 'This account no longer exists.', 'unauthorized');
   return user;
 }
+
+/** Short-lived signed value for OAuth round trips (proves who started the sign-in). */
+export async function signState(userId: string, provider: string): Promise<string> {
+  return new SignJWT({ provider }).setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt().setExpirationTime('10m').setIssuer('ugent-oauth').sign(secret());
+}
+export async function verifyState(state: string): Promise<{ userId: string; provider: string }> {
+  try {
+    const { payload } = await jwtVerify(state, secret(), { issuer: 'ugent-oauth' });
+    return { userId: payload.sub!, provider: String(payload.provider) };
+  } catch {
+    throw new HttpError(400, 'This sign-in link has expired. Start again from the app.', 'bad_state');
+  }
+}
