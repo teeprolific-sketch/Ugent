@@ -1,46 +1,12 @@
 import { useColorScheme } from 'react-native';
 
-/* Brand: sky blue #0EA5E9, white, deep blue #0B3D91. Calm, lots of white space, big readable text. */
-const light = {
-  bg: '#FFFFFF',
-  surface: '#F3F8FD',
-  surface2: '#E7F3FC',
-  line: '#E1EAF3',
-  ink: '#12233F',
-  heading: '#0B3D91',
-  muted: '#5A6B85',
-  sky: '#0EA5E9',
-  skyInk: '#0369A1',
-  onSky: '#FFFFFF',
-  good: '#15803D',
-  warn: '#B45309',
-  danger: '#B91C1C',
-  bar: '#0B3D91',
-  barSoft: '#BFE4F8',
-  toast: '#0B3D91',
-  scrim: 'rgba(6, 21, 47, 0.35)',
-};
-export type Colors = typeof light;
-
-const dark: Colors = {
-  bg: '#06152F',
-  surface: '#0C2147',
-  surface2: '#0E2C5C',
-  line: '#1A3566',
-  ink: '#E6EEF9',
-  heading: '#DCEBFF',
-  muted: '#9DB0CC',
-  sky: '#0EA5E9',
-  skyInk: '#5CC8F5',
-  onSky: '#FFFFFF',
-  good: '#4ADE80',
-  warn: '#FBBF24',
-  danger: '#F87171',
-  bar: '#5CC8F5',
-  barSoft: '#1E4A80',
-  toast: '#1E4A80',
-  scrim: 'rgba(0, 0, 0, 0.55)',
-};
+/* Brand: sky blue #0EA5E9, white, deep blue #0B3D91. Calm, lots of white space, big readable text.
+ * The colour tokens live in themes.ts; this file picks the one the user chose. */
+import { useMemo } from 'react';
+import { useApp } from './store';
+import type { Colors, ResolvedTheme } from './themes';
+import { resolveTheme } from './themes';
+export type { Colors };
 
 /* Outfit matches the Ugent wordmark. Yoruba, Igbo and Hausa stack tone marks (ẹ́, ụ̀) that Outfit cannot
  * position, so those languages use Noto Sans, which was designed for them. The getters read the current
@@ -60,7 +26,15 @@ export const size = { sm: 15, base: 17, lg: 20, xl: 28, hero: 40 };
 export const radius = { md: 14, lg: 16, xl: 22 };
 export const space = 20; // side gutter
 
-export function useColors(): Colors {
-  return useColorScheme() === 'dark' ? dark : light;
+/** The active theme: the user's choice, or the phone's light/dark setting when it is "Automatic". */
+export function useTheme(): ResolvedTheme {
+  const system = useColorScheme();
+  const id = useApp((s) => s.settings.theme);
+  const custom = useApp((s) => s.settings.customTheme);
+  const plan = useApp((s) => s.me?.plan ?? 'free');
+  return useMemo(() => resolveTheme(id, custom, plan, system), [id, custom, plan, system]);
 }
-export const isDarkScheme = (s: string | null | undefined) => s === 'dark';
+
+export function useColors(): Colors {
+  return useTheme().colors;
+}

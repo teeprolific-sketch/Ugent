@@ -6,6 +6,7 @@ import type { Action, EnergyLog, Hustle, IntegrationStatus, Lang, Logs, Me, Peak
 import { addDays, applyMoves, fmtDate, sampleDay, uid } from '@ugent/core';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { CustomTheme, ThemeId } from './themes';
 
 export interface ChatMessage {
   id: string;
@@ -38,6 +39,9 @@ export interface Settings {
   travelBuffer: number;
   /** Message used for "running late" drafts. */
   lateTemplate: string;
+  /** Appearance. 'auto' follows the phone's light/dark setting. */
+  theme: ThemeId;
+  customTheme: CustomTheme;
 }
 
 /** Apps connected on the phone itself (no Ugent account needed). */
@@ -121,6 +125,7 @@ const DEFAULT_SETTINGS: Settings = {
   voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false,
   cloudChat: true, rememberChats: true, leadMins: 10, briefTime: '07:00', quietHours: true, travelBuffer: 45,
   lateTemplate: "Hi, I'm running about {mins} minutes late because of {reason}. Sorry, I'm on my way.",
+  theme: 'auto', customTheme: { base: 'light', accent: '#0EA5E9' },
 };
 
 const DEFAULTS = {

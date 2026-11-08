@@ -9,12 +9,15 @@ import { font, radius, size, space, useColors } from '@/theme';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 
+/** On web, text inputs draw a browser focus box inside our own focus border; turn that off. */
+export const webNoOutline = (Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as object;
+
 const tap = () => { if (Platform.OS !== 'web') Haptics.selectionAsync().catch(() => {}); };
 
 /* ---------- Text ---------- */
 type Variant = 'hero' | 'title' | 'h2' | 'h3' | 'body' | 'small' | 'label' | 'strong';
-export function T({ v = 'body', muted, color, style, children, numberOfLines, center, selectable }: {
-  v?: Variant; muted?: boolean; color?: string; style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number; center?: boolean; selectable?: boolean;
+export function T({ v = 'body', muted, color, style, children, numberOfLines, center, selectable, accessibilityLiveRegion }: {
+  v?: Variant; muted?: boolean; color?: string; style?: StyleProp<TextStyle>; children: ReactNode; numberOfLines?: number; center?: boolean; selectable?: boolean; accessibilityLiveRegion?: 'none' | 'polite' | 'assertive';
 }) {
   const c = useColors();
   const base: Record<Variant, TextStyle> = {
@@ -28,7 +31,7 @@ export function T({ v = 'body', muted, color, style, children, numberOfLines, ce
     label: { fontFamily: font.semibold, fontSize: 13, color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase' },
   };
   return (
-    <Text selectable={selectable} numberOfLines={numberOfLines} style={[base[v], muted && { color: c.muted }, color ? { color } : null, center && { textAlign: 'center' }, style]}>
+    <Text selectable={selectable} accessibilityLiveRegion={accessibilityLiveRegion} numberOfLines={numberOfLines} style={[base[v], muted && { color: c.muted }, color ? { color } : null, center && { textAlign: 'center' }, style]}>
       {children}
     </Text>
   );
@@ -242,7 +245,7 @@ export function Field({ label, ...props }: TextInputProps & { label?: string }) 
         {...props}
         onFocus={(e) => { setFocus(true); props.onFocus?.(e); }}
         onBlur={(e) => { setFocus(false); props.onBlur?.(e); }}
-        style={[{ minHeight: 54, borderRadius: radius.md, borderWidth: 1.5, borderColor: focus ? c.sky : c.line, paddingHorizontal: 16, fontFamily: font.regular, fontSize: size.base, color: c.ink, backgroundColor: c.bg }, props.style]}
+        style={[{ minHeight: 54, borderRadius: radius.md, borderWidth: 1.5, borderColor: focus ? c.sky : c.line, paddingHorizontal: 16, fontFamily: font.regular, fontSize: size.base, color: c.ink, backgroundColor: c.bg }, webNoOutline, props.style]}
       />
     </View>
   );

@@ -41,6 +41,8 @@ const P: Record<string, (c: string) => React.ReactNode> = {
   robot: () => <><Rect x="5" y="8" width="14" height="11" rx="3" /><Path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5" /></>,
   leaf: () => <Path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14Zm0 0 7-7" />,
   wrench: () => <Path d="M14.5 6.5a4 4 0 0 0 5 5l-8.5 8.5a2.1 2.1 0 0 1-3-3l8.5-8.5a4 4 0 0 0-2-2ZM14.5 6.5 17 4" />,
+  search: () => <><Circle cx="11" cy="11" r="6.5" /><Path d="m16 16 4.5 4.5" /></>,
+  wave: () => <Path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" />,
   sync: () => <Path d="M20 11a8 8 0 0 0-14.3-4.3L4 8.5M4 4v4.5h4.5M4 13a8 8 0 0 0 14.3 4.3l1.7-1.8M20 20v-4.5h-4.5" />,
 };
 

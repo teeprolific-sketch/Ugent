@@ -6,12 +6,16 @@ import { View } from 'react-native';
 import { Header, Row, Screen, Segmented, T, Toggle } from '@/components/ui';
 import { useOnline } from '@/hooks';
 import { effectivePlan, useApp } from '@/store';
+import { useTheme } from '@/theme';
+import { THEMES } from '@/themes';
 
 export default function Settings() {
   const state = useApp();
   const online = useOnline();
   const plan = effectivePlan(state);
   const pending = state.sync.dirtyTasks.length + state.sync.dirtyEvents.length;
+  const theme = useTheme();
+  const themeLabel = state.settings.theme === 'auto' ? `Match my phone (${theme.base === 'dark' ? 'Black' : 'White'})` : theme.id === 'custom' ? 'Custom' : THEMES.find((t) => t.id === theme.id)?.name ?? 'White';
   return (
     <Screen>
       <Header back title="Settings" />
@@ -21,6 +25,7 @@ export default function Settings() {
       </Group>
       <Group>
         <Row icon="bell" title="Notifications" sub={state.settings.reminders ? `Reminders ${state.settings.leadMins} min before` : 'Reminders off'} chevron onPress={() => router.push('/notifications')} />
+        <Row icon="sun" title="Appearance" sub={themeLabel} chevron onPress={() => router.push('/appearance')} />
         <Row icon="chat" title="Language" sub={langMeta(state.profile.lang).native} chevron onPress={() => router.push('/language')} />
         <Row icon="lock" title="Privacy and memory" sub="What Ugent remembers and may do" chevron onPress={() => router.push('/privacy')} />
         <Row icon="link" title="Connected apps" chevron onPress={() => router.push('/connections')} />

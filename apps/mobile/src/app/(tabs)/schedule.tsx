@@ -94,8 +94,8 @@ export default function Schedule() {
               return (
                 <Pressable key={d} onPress={() => setDay(d)} accessibilityRole="tab" accessibilityState={{ selected: on }}
                   style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, backgroundColor: on ? c.sky : 'transparent', minHeight: 60, justifyContent: 'center' }}>
-                  <T v="small" style={{ fontSize: 12, fontFamily: font.semibold, color: on ? '#FFFFFF' : c.muted, textTransform: 'uppercase' }}>{fmtDay(d, lang, { weekday: 'short' })}</T>
-                  <T v="h2" style={{ color: on ? '#FFFFFF' : c.ink }}>{parseDate(d).getDate()}</T>
+                  <T v="small" style={{ fontSize: 12, fontFamily: font.semibold, color: on ? c.onSky : c.muted, textTransform: 'uppercase' }}>{fmtDay(d, lang, { weekday: 'short' })}</T>
+                  <T v="h2" style={{ color: on ? c.onSky : c.ink }}>{parseDate(d).getDate()}</T>
                 </Pressable>
               );
             })}
