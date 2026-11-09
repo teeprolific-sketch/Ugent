@@ -1,4 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
+import { Platform } from 'react-native';
+import { QuickActionsBridge } from '@/components/QuickActions';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import type { IconName } from '@/components/Icon';
@@ -18,6 +20,9 @@ export default function TabsLayout() {
   const t = useT();
   const insets = useSafeAreaInsets();
   return (
+    <>
+    {/* Home-screen shortcuts (long-press the app icon). Phones only; the platform never changes at runtime. */}
+    {Platform.OS !== 'web' && <QuickActionsBridge />}
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -34,5 +39,6 @@ export default function TabsLayout() {
         }} />
       ))}
     </Tabs>
+    </>
   );
 }

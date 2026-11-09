@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { Wordmark } from '@/brand/Logo';
 import { Icon } from '@/components/Icon';
 import type { IconName } from '@/components/Icon';
-import { ChoiceList, Group, LanguageList, TimeChips } from '@/components/kit';
+import { ChoiceList, Group, LanguageSearch, TimeChips } from '@/components/kit';
 import { Button, Field, LinkButton, Screen, Segmented, T, Toggle } from '@/components/ui';
 import { apiConfigured } from '@/lib/api';
 import { askNotificationPermission } from '@/lib/notifications';
@@ -74,7 +74,7 @@ export default function Onboarding() {
           <T v="title">Choose your language</T>
           <T muted>You can mix languages when you talk to Ugent. Change it any time in Settings.</T>
         </View>
-        <LanguageList value={lang} onChange={(l) => { setLang(l); setFontLanguage(l); }} />
+        <LanguageSearch value={lang} onChange={(l) => { setLang(l); setFontLanguage(l); }} />
         {next()}
       </Screen>
     );

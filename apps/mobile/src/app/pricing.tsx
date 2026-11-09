@@ -10,7 +10,7 @@ import { syncNow } from '@/lib/sync';
 import { effectivePlan, useApp } from '@/store';
 import { useColors } from '@/theme';
 
-const PRO = ['Personal daily brief, calendar and tasks', 'Full chat and voice in 6 languages', 'Smart scheduling and automatic rescheduling', 'Personal analytics', 'Connected apps: WhatsApp, Maps, Calendar, Gmail and more', 'Me AI ecosystem: Sleek, Domestica I, Afrika I, ID\'d', 'Works offline and on low data'];
+const PRO = ['Personal daily brief, calendar and tasks', 'Full chat and voice in 6 languages', 'Smart scheduling and automatic rescheduling', 'Personal analytics', 'Connected apps: WhatsApp, Maps, Calendar, Gmail and more', 'Me AI ecosystem: Sleek, Domestica I, Afrika I, ID\'d', 'Works offline and on low data', 'Extra themes and your own custom theme'];
 const TEAM = ['Everything in Pro', 'Team home with shared updates', 'Shared team calendar', 'Team tasks board', 'Admin panel: members and roles', 'Advanced team analytics', 'Syncing across everyone on the team', 'Personal and Team workspaces'];
 
 export default function Pricing() {

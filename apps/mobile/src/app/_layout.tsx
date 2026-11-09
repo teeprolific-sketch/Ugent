@@ -14,8 +14,9 @@ import { initPurchases } from '@/lib/purchases';
 import { syncNow, syncSoon } from '@/lib/sync';
 import { refreshCloud, refreshImports } from '@/lib/connections';
 import { refreshTeam } from '@/lib/team';
+import { registerBackgroundWork } from '@/lib/background';
 import { useApp } from '@/store';
-import { setFontLanguage, useColors } from '@/theme';
+import { setFontLanguage, useColors, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 initNotifications();
@@ -24,6 +25,7 @@ if (Platform.OS === 'web') NetInfo.configure({ reachabilityShouldRun: () => fals
 
 export default function RootLayout() {
   const c = useColors();
+  const themeBase = useTheme().base;
   const [fontsLoaded] = useFonts({ Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold, NotoSans_400Regular, NotoSans_500Medium, NotoSans_600SemiBold, NotoSans_700Bold });
   const lang = useApp((s) => s.profile.lang);
   setFontLanguage(lang);
@@ -38,6 +40,7 @@ export default function RootLayout() {
     if (!ready || !onboarded) return;
     const refreshAll = () => { void syncNow().then(() => { void refreshCloud().then(refreshImports); if (useApp.getState().me?.teamId) void refreshTeam(); }); };
     refreshAll();
+    void registerBackgroundWork();
     const appSub = AppState.addEventListener('change', (st) => { if (st === 'active') refreshAll(); });
     const netSub = NetInfo.addEventListener((st) => { if (st.isConnected) syncSoon(500); });
     const storeSub = useApp.subscribe((s, prev) => {
@@ -52,15 +55,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ToastProvider>
-        <StatusBar style="auto" />
+        <StatusBar style={themeBase === 'dark' ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'default' }}>
           <Stack.Protected guard={onboarded}>
             <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="voice" options={{ presentation: 'fullScreenModal' }} />
+            <Stack.Screen name="live" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
             <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="focus" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
             {['analytics', 'pricing', 'settings', 'team', 'team-admin', 'ecosystem', 'connections/index', 'connections/whatsapp', 'connections/maps',
-              'profile', 'privacy', 'notifications', 'language', 'offline', 'help'].map((n) => <Stack.Screen key={n} name={n} />)}
+              'profile', 'privacy', 'notifications', 'language', 'offline', 'help', 'appearance'].map((n) => <Stack.Screen key={n} name={n} />)}
           </Stack.Protected>
           <Stack.Protected guard={!onboarded}>
             <Stack.Screen name="onboarding" />

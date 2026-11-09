@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMoves, bestTime, computeReschedule, extractTitle, fmtDate, headsUp, parseTime, respond, sampleDay, scamCheck, searchLangs, suggestSlot, t } from './index';
+import { applyMoves, bestTime, computeReschedule, detectRoutines, extractTitle, fmtDate, headsUp, parseTime, respond, routineToSuggest, sampleDay, scamCheck, searchLangs, suggestSlot, t } from './index';
 import type { PlannerState } from './index';
 
 const at = (h: number, m = 0) => new Date(2026, 10, 7, h, m); // Sat 7 Nov 2026
@@ -117,4 +117,24 @@ test('daily rhythm: no plans before the user wakes', () => {
   const now = at(5, 0);
   const s = { ...stateAt(now), events: [], day: { start: 8 * 60, end: 20 * 60 } };
   assert.ok(suggestSlot(s, 'personal', 30, now).start >= '08:00');
+});
+
+test('remember: personal facts in several languages', () => {
+  const now = at(10, 30);
+  const s = stateAt(now);
+  assert.deepEqual(respond("Remember that my mum's name is Ngozi", s, { lang: 'en', now, fmtTime }).actions[0], { type: 'remember', text: "My mum's name is Ngozi" });
+  assert.equal(respond('Make you remember say I close shop by 7 on Saturday', s, { lang: 'pcm', now, fmtTime }).actions[0]?.type, 'remember');
+  assert.equal(respond('Souviens-toi que je travaille de nuit le lundi', s, { lang: 'fr', now, fmtTime }).actions[0]?.type, 'remember');
+});
+
+test('routines: weekly repeats are learned and suggested on the right day', () => {
+  // Gym on three Mondays at about 7 PM, plus one-off plans that must not count.
+  const mon = new Date(2026, 10, 9, 8, 0); // Monday 9 Nov 2026
+  const ev = (title: string, date: string, start: string) => ({ id: Math.random().toString(36), title, date, start, dur: 60, kind: 'personal' as const, fixed: false, needsPower: false, updatedAt: 0 });
+  const events = [ev('Gym', '2026-10-26', '19:00'), ev('Gym', '2026-11-02', '19:15'), ev('gym', '2026-10-19', '18:45'), ev('Dentist', '2026-11-02', '10:00')];
+  const routines = detectRoutines(events, mon);
+  assert.equal(routines.length, 1);
+  assert.equal(routines[0].title, 'Gym'); assert.equal(routines[0].weekday, 1); assert.equal(routines[0].times, 3);
+  assert.equal(routineToSuggest(routines, events, mon)?.title, 'Gym');
+  assert.equal(routineToSuggest(routines, [...events, ev('Gym', '2026-11-09', '19:00')], mon), null);
 });

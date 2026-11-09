@@ -1,5 +1,5 @@
 import type { Reason } from '@ugent/core';
-import { bestTime, computeReschedule, fmtDate, headsUp, minOfDay, toMin } from '@ugent/core';
+import { bestTime, computeReschedule, detectRoutines, fmtDate, headsUp, minOfDay, routineToSuggest, toMin, weekdayName } from '@ugent/core';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -61,6 +61,9 @@ export default function Home() {
   const leaveLine = leave && withPlace && leave.id === withPlace.id
     ? `Leave by ${fmtTime(lang)(fromMin(toMin(withPlace.start) - leave.minutes - 10))} for ${withPlace.title} (${leave.minutes} min${leave.live ? ' with traffic now' : ', your usual buffer'}).`
     : null;
+  // Personal routine: something they usually do on this weekday that isn't planned yet.
+  const suggested = state.settings.learn ? routineToSuggest(detectRoutines(state.events, now), liveEvents(state), now) : null;
+  const routine = suggested && !state.routineSkips.includes(`${suggested.title.toLowerCase()}|${d0}`) ? suggested : null;
   const gmail = state.gmail && state.gmail.count > 0
     ? `${state.gmail.count} important unread email${state.gmail.count > 1 ? 's' : ''}${state.gmail.top[0] ? `, latest from ${state.gmail.top[0].from}` : ''}.`
     : null;
@@ -102,6 +105,18 @@ export default function Home() {
         )}
       </Card>
 
+      {routine && (
+        <Card>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Icon name="sync" color={c.skyInk} />
+            <T style={{ flex: 1 }}>You usually do <T style={{ fontFamily: font.semibold }}>{routine.title}</T> on {weekdayName(routine.weekday)}s around {fmtTime(lang)(routine.start)}. Add it today?</T>
+          </View>
+          <ButtonRow>
+            <Button compact label="Add it" style={{ flexGrow: 1 }} onPress={() => { state.addEvent({ title: routine.title, date: d0, start: routine.start, dur: 60, kind: 'personal', fixed: false, needsPower: false }); toast(`${routine.title} added for ${fmtTime(lang)(routine.start)}`); }} />
+            <Button compact kind="ghost" label="Not today" style={{ flexGrow: 1 }} onPress={() => state.skipRoutine(`${routine.title.toLowerCase()}|${d0}`)} />
+          </ButtonRow>
+        </Card>
+      )}
       {empty ? (
         <EmptyState icon="calendar" title="Your day is clear" body="Add your first plan or task, or just tell Ugent what you need to do today."
           action={{ label: 'Talk to Ugent', onPress: () => router.navigate('/chat') }} secondary={{ label: 'Add a plan', onPress: () => router.push('/event/new') }} />

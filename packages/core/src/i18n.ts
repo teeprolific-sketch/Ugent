@@ -58,6 +58,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'I can call {name} for you.',
       messageAction: 'I wrote a message for {name}. I will open {app} so you can send it.',
       directionsAction: 'I can open directions to {place}.',
+      rememberAction: 'Got it. I will remember: {fact}.',
       today: 'today', tomorrow: 'tomorrow',
     },
     pcm: {
@@ -93,6 +94,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'I fit call {name} for you.',
       messageAction: 'I don write message for {name}. I go open {app} make you send am.',
       directionsAction: 'I fit show you road go {place}.',
+      rememberAction: 'I don hear. I go remember: {fact}.',
       today: 'today', tomorrow: 'tomorrow',
     },
     yo: {
@@ -128,6 +130,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'Mo lè pe {name} fún ọ.',
       messageAction: 'Mo ti kọ ọ̀rọ̀ fún {name}. Màá ṣí {app} kí o lè fi ránṣẹ́.',
       directionsAction: 'Mo lè fi ọ̀nà sí {place} hàn ọ́.',
+      rememberAction: 'Ó yé mi. Màá rántí: {fact}.',
       today: 'lónìí', tomorrow: 'lọ́la',
     },
     ig: {
@@ -163,6 +166,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'Enwere m ike ịkpọ {name} maka gị.',
       messageAction: 'Edeela m ozi maka {name}. M ga-emeghe {app} ka ị zipu ya.',
       directionsAction: 'Enwere m ike igosi gị ụzọ gaa {place}.',
+      rememberAction: 'Aghọtala m. M ga-echeta: {fact}.',
       today: 'taa', tomorrow: 'echi',
     },
     ha: {
@@ -198,6 +202,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'Zan iya kiran {name} maka.',
       messageAction: 'Na rubuta saƙo don {name}. Zan buɗe {app} don ka aika.',
       directionsAction: 'Zan iya nuna maka hanyar zuwa {place}.',
+      rememberAction: 'Na ji. Zan tuna: {fact}.',
       today: 'yau', tomorrow: 'gobe',
     },
     fr: {
@@ -233,6 +238,7 @@ const T: Record<Lang, Record<string, string>> = {
       callAction: 'Je peux appeler {name} pour vous.',
       messageAction: 'J\'ai rédigé un message pour {name}. J\'ouvre {app} pour que vous l\'envoyiez.',
       directionsAction: 'Je peux ouvrir l\'itinéraire vers {place}.',
+      rememberAction: 'Compris. Je retiens : {fact}.',
       today: 'aujourd\'hui', tomorrow: 'demain',
     },
   };

@@ -1,4 +1,5 @@
-import { bestTime, langMeta } from '@ugent/core';
+import { bestTime, detectRoutines, langMeta, weekdayName } from '@ugent/core';
+import { fmtTime } from '@/lib/format';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -20,6 +21,7 @@ export default function Privacy() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const hasSamples = state.tasks.some((x) => x.sample) || state.events.some((e) => e.sample);
+  const routines = s.learn ? detectRoutines(state.events, new Date()) : [];
 
   const sw = (title: string, sub: string, value: boolean, onChange: (v: boolean) => void) =>
     <Row title={title} sub={sub} right={<Toggle value={value} onChange={onChange} label={title} />} />;
@@ -46,13 +48,27 @@ export default function Privacy() {
 
       <Group title="What Ugent remembers">
         <Row icon="chat" title="Chat history" sub={`${state.messages.length} messages`} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('chats')} />
-        <Row icon="chart" title="Habits" sub={`${state.log.completions.length} finished-task times, ${state.log.energy.length} energy check-ins`} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('habits')} />
+        <Row icon="chart" title="Habits" sub={`${state.log.completions.length} finished-task times, ${state.log.energy.length} energy check-ins, people and places`} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('habits')} />
         <Row icon="pin" title="Places" sub={state.places.home || state.places.work ? [state.places.home && 'Home', state.places.work && 'Work'].filter(Boolean).join(', ') : 'None saved'} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('places')} />
         <Row icon="eye" title="See everything Ugent knows" chevron onPress={() => setKnown(true)} />
       </Group>
 
+      <Group title="What Ugent has learned about you" note="Ugent uses these to make answers personal. Tap any item to delete it.">
+        {state.memory.notes.length === 0 && Object.keys(state.memory.people).length === 0 && Object.keys(state.memory.places).length === 0 && routines.length === 0 ? (
+          <Row title="Nothing yet" sub='Say "Remember that…" in chat or Live, and Ugent learns as you call, message and plan.' />
+        ) : null}
+        {state.memory.notes.map((n) => <Row key={n.id} icon="info" title={n.text} sub="You asked Ugent to remember this" right={<Icon name="x" color={c.muted} size={18} />} onPress={() => { state.forgetNote(n.id); toast('Forgotten'); }} />)}
+        {Object.entries(state.memory.people).sort((a, b) => b[1].count - a[1].count).slice(0, 10).map(([k, p]) => (
+          <Row key={k} icon="user" title={p.name} sub={`Called or messaged ${p.count} time${p.count > 1 ? 's' : ''}${p.phone ? ' · number saved' : ''}`} right={<Icon name="x" color={c.muted} size={18} />} onPress={() => { state.forgetPerson(k); toast('Forgotten'); }} />
+        ))}
+        {Object.entries(state.memory.places).sort((a, b) => b[1].count - a[1].count).slice(0, 8).map(([k, p]) => (
+          <Row key={k} icon="pin" title={p.name} sub={`Visited ${p.count} time${p.count > 1 ? 's' : ''}`} right={<Icon name="x" color={c.muted} size={18} />} onPress={() => { state.forgetPlace(k); toast('Forgotten'); }} />
+        ))}
+        {routines.map((r) => <Row key={`${r.title}-${r.weekday}`} icon="sync" title={r.title} sub={`Usually ${weekdayName(r.weekday)}s around ${fmtTime(state.profile.lang)(r.start)} · learned from your plans`} />)}
+      </Group>
+
       <Group title="Memory">
-        {sw('Learn from my habits', 'Notes when you finish tasks to find your best time.', s.learn, (v) => state.setSettings({ learn: v }))}
+        {sw('Learn from me', 'Your best time, routines, the people you contact and places you go.', s.learn, (v) => state.setSettings({ learn: v }))}
         {sw('Remember my chats', 'Off: chats are cleared each time Ugent closes.', s.rememberChats, (v) => state.setSettings({ rememberChats: v }))}
       </Group>
 

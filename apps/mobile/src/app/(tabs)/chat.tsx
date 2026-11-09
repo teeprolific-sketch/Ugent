@@ -5,9 +5,10 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { ActionLines, DraftBlock } from '@/components/blocks';
-import { Button, ButtonRow, Chip, IconButton, Pill, T, useToast } from '@/components/ui';
+import { Button, ButtonRow, Chip, IconButton, Pill, T, useToast, webNoOutline } from '@/components/ui';
 import { useLang, useOnline, useT } from '@/hooks';
 import { askUgent } from '@/lib/chat';
+import { parseCommand } from '@/lib/commands';
 import { useRunActions } from '@/lib/useRunActions';
 import { EmptyState } from '@/components/kit';
 import { speak, useVoiceInput } from '@/lib/voice';
@@ -54,6 +55,15 @@ export default function Chat() {
     setText('');
     const history = useApp.getState().messages;
     pushMessage({ from: 'me', text: msg });
+    // App commands ("open my tasks", "switch to black theme") run on the phone straight away.
+    const cmd = parseCommand(msg);
+    if (cmd) {
+      pushMessage({ from: 'ugent', text: cmd.say });
+      await cmd.run?.();
+      if (useApp.getState().settings.voiceReplies) speak(cmd.say, lang);
+      if (cmd.href) setTimeout(() => router.push(cmd.href!), 300);
+      return;
+    }
     setThinking(true);
     try {
       const reply = await askUgent(msg, history);
@@ -75,7 +85,11 @@ export default function Chat() {
           <T v="small" muted>{online && !settings.lowData ? 'Online' : 'Offline, still working'} · {langMeta(lang).native}</T>
         </View>
         <View style={{ flexDirection: 'row' }}>
-          <IconButton icon="mic" label="Voice mode" color={c.skyInk} onPress={() => router.push('/voice')} />
+          <Pressable onPress={() => router.push('/live')} accessibilityRole="button" accessibilityLabel="Talk live with Ugent"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, minHeight: 40, borderRadius: 20, backgroundColor: c.sky, marginRight: 4 }}>
+            <Icon name="wave" color={c.onSky} size={18} strokeWidth={2.2} />
+            <T v="strong" color={c.onSky}>Live</T>
+          </Pressable>
           <IconButton icon="trash" label="Clear chat" onPress={() => { clearChat(); }} />
         </View>
       </View>
@@ -83,7 +97,7 @@ export default function Chat() {
       <ScrollView ref={scroll} contentContainerStyle={{ padding: space, gap: 14 }} keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
         {messages.length <= 1 && (
-          <EmptyState icon="chat" title="Ask Ugent anything about your day" body="Plan, reschedule, set reminders, call or message someone, or get directions. Type, or tap the microphone to talk." />
+          <EmptyState icon="chat" title="Ask Ugent anything about your day" body="Plan, reschedule, set reminders, call or message someone, or get directions. Type, or tap Live to talk with Ugent out loud." action={{ label: 'Talk live', onPress: () => router.push('/live') }} />
         )}
         {messages.map((m) => m.from === 'me' ? (
           <View key={m.id} style={{ alignSelf: 'flex-end', maxWidth: '86%', backgroundColor: c.surface2, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 18, borderBottomRightRadius: 4 }}>
@@ -132,7 +146,7 @@ export default function Chat() {
         <TextInput
           value={voice.listening ? voice.partial : text} onChangeText={setText} placeholder={voice.listening ? 'Listening…' : t('chat.placeholder')}
           placeholderTextColor={c.muted} onSubmitEditing={() => void send(text)} returnKeyType="send" accessibilityLabel="Message"
-          style={{ flex: 1, minWidth: 0, minHeight: 50, borderRadius: 25, paddingHorizontal: 18, backgroundColor: c.surface, color: c.ink, fontFamily: font.regular, fontSize: size.base }} />
+          style={[{ flex: 1, minWidth: 0, minHeight: 50, borderRadius: 25, paddingHorizontal: 18, backgroundColor: c.surface, color: c.ink, fontFamily: font.regular, fontSize: size.base }, webNoOutline]} />
         <Pressable onPress={() => void send(text)} accessibilityRole="button" accessibilityLabel="Send"
           style={{ width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: c.sky, opacity: text.trim() ? 1 : 0.6 }}>
           <Icon name="send" color="#FFFFFF" />
