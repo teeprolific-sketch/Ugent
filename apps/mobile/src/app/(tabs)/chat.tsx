@@ -8,6 +8,7 @@ import { ActionLines, DraftBlock } from '@/components/blocks';
 import { Button, ButtonRow, Chip, IconButton, Pill, T, useToast, webNoOutline } from '@/components/ui';
 import { useLang, useOnline, useT } from '@/hooks';
 import { askUgent } from '@/lib/chat';
+import { parseCommand } from '@/lib/commands';
 import { useRunActions } from '@/lib/useRunActions';
 import { EmptyState } from '@/components/kit';
 import { speak, useVoiceInput } from '@/lib/voice';
@@ -54,6 +55,15 @@ export default function Chat() {
     setText('');
     const history = useApp.getState().messages;
     pushMessage({ from: 'me', text: msg });
+    // App commands ("open my tasks", "switch to black theme") run on the phone straight away.
+    const cmd = parseCommand(msg);
+    if (cmd) {
+      pushMessage({ from: 'ugent', text: cmd.say });
+      await cmd.run?.();
+      if (useApp.getState().settings.voiceReplies) speak(cmd.say, lang);
+      if (cmd.href) setTimeout(() => router.push(cmd.href!), 300);
+      return;
+    }
     setThinking(true);
     try {
       const reply = await askUgent(msg, history);

@@ -63,6 +63,7 @@ export function ActionLines({ actions }: { actions: Action[] }) {
         if (a.type === 'call') return [line('chat', `Call ${a.name}${a.phone ? ` (${a.phone})` : ''}`, `${i}`)];
         if (a.type === 'message') return [line('send', `${a.channel === 'sms' ? 'SMS' : 'WhatsApp'} to ${a.name ?? 'someone'}: "${a.text}"`, `${i}`)];
         if (a.type === 'directions') return [line('car', `Directions to ${a.destination} in Google Maps`, `${i}`)];
+        if (a.type === 'remember') return [line('info', `Remember: ${a.text}`, `${i}`)];
         return [];
       })}
     </View>

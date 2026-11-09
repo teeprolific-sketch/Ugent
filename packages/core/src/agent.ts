@@ -144,6 +144,13 @@ export function respond(text: string, state: PlannerState, ctx: AgentContext): A
     return reply('focus', { m: mins }, [{ type: 'focus', mins }]);
   }
 
+  // 3b. "Remember that…": personal facts the user wants Ugent to keep.
+  const mem = text.match(/^\s*(?:please\s+|abeg\s+)?(?:remember(?:\s+that)?|don'?t\s+forget(?:\s+that)?|make\s+you\s+remember(?:\s+say)?|no\s+forget(?:\s+say)?|r[aá]n?t[ií]\s+p[eé]|cheta(?:\s+na)?|ka\s+tuna(?:\s+cewa)?|souviens[- ]toi(?:\s+que)?|retiens(?:\s+que)?)\s+(.{3,280})$/iu);
+  if (mem) {
+    const fact = cap(mem[1].trim().replace(/[.!]+$/, ''));
+    return reply('rememberAction', { fact }, [{ type: 'remember', text: fact }]);
+  }
+
   // 4. Real actions through connected apps: call, message, directions. Only when asked to do it now
   //    (a time or "remind me" makes it a reminder instead, handled below).
   const now_ = !has(n, P.add) && parseTime(n) === null;

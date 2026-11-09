@@ -48,6 +48,15 @@ brand/          Logo source and the script that renders every icon and splash im
 
 People on the Team plan get a **Personal / Team** switcher on Home, Schedule and Tasks. Pro accounts never see team elements.
 
+## Live, voice and personalisation
+
+- **Live** (Chat, top right): a hands-free conversation. Ugent listens, answers out loud and listens again until you end it or say "bye". Actions can be confirmed by voice ("yes", "oya", "bẹ́ẹ̀ni", "oui"…).
+- **Without opening the app:** long-press the Ugent icon for *Talk to Ugent*, *Plans changed?* or *Add a task*. The link `ugent://live` opens straight into Live, so Siri Shortcuts ("Open URL") and Google Assistant routines can start it by voice.
+- **Voice commands** (Live or Chat), handled on the phone: "open my tasks", "show my week", "switch to black theme", "turn on low data", "turn off reminders", "sync now", "remember that…", "what do you remember about me".
+- **Background work:** about every 30 minutes, even when Ugent is closed, it syncs, refreshes imported calendars and Gmail, and re-plans reminders and the morning brief (`expo-background-task`; the phone decides the exact timing).
+- **Personalisation:** Ugent learns from what you do: the people you call or message (and their numbers once found), places you go, weekly routines from your plans, your best time of day, and facts you ask it to remember. It uses these in the brief (routine suggestions), in on-device answers, and in the cloud AI's context. Everything is listed in *Privacy and memory* and can be deleted item by item.
+- **Themes** (Settings, Appearance): White and Black for everyone, or match the phone. Pro and Team add Midnight, Ocean, Sunset, Forest, Royal and a custom theme.
+
 ## Connected apps
 
 | App | How it connects | What Ugent does |

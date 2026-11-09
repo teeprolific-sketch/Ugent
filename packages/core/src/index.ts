@@ -6,3 +6,4 @@ export * from './agent';
 export * from './api';
 export * from './samples';
 export * from './scam';
+export * from './personal';

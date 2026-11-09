@@ -7,6 +7,7 @@ import { Icon } from '@/components/Icon';
 import { Button, ButtonRow, T, useToast } from '@/components/ui';
 import { useLang, useT } from '@/hooks';
 import { askUgent } from '@/lib/chat';
+import { parseCommand } from '@/lib/commands';
 import { isGoodbye, isNo, isYes } from '@/lib/live';
 import { useRunActions } from '@/lib/useRunActions';
 import { speak, stopSpeaking, useVoiceInput } from '@/lib/voice';
@@ -68,8 +69,20 @@ export default function Live() {
     if (isGoodbye(text)) { say(t('done'), end); return; }
     if (pending && isYes(text)) { await run(pending); setPending(null); say(t('done')); return; }
     if (pending && isNo(text)) { useApp.getState().updateMessage(pending.id, { status: 'cancelled' }); setPending(null); say(t('cancelled')); return; }
-    setP('thinking');
     const s = useApp.getState();
+    // App commands run straight away: settings change while Live keeps listening; "open …" closes Live and goes there.
+    const cmd = parseCommand(text);
+    if (cmd) {
+      s.pushMessage({ from: 'me', text });
+      s.pushMessage({ from: 'ugent', text: cmd.say });
+      await cmd.run?.();
+      if (cmd.href) {
+        const href = cmd.href;
+        say(cmd.say, () => { end(); setTimeout(() => router.push(href), 350); });
+      } else say(cmd.say);
+      return;
+    }
+    setP('thinking');
     const history = s.messages;
     s.pushMessage({ from: 'me', text });
     try {

@@ -40,6 +40,13 @@ export const ChatRequest = z.object({
     events: z.array(EventSchema).max(300),
     tasks: z.array(TaskSchema).max(300),
     completions: z.array(z.object({ t: z.number() })).max(500),
+    /** What Ugent has learned about this person, so replies can be personal. */
+    about: z.object({
+      notes: z.array(z.string().max(300)).max(50),
+      people: z.array(z.string().max(80)).max(30),
+      places: z.array(z.string().max(200)).max(20),
+      routines: z.array(z.string().max(200)).max(20),
+    }).optional(),
   }),
 });
 export type ChatRequest = z.infer<typeof ChatRequest>;

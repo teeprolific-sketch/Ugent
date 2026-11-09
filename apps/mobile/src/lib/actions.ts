@@ -31,11 +31,16 @@ export const directionsUrl = (destination: string) => `https://www.google.com/ma
 
 /** Runs one action. Returns a sentence for the user if something needs their attention. */
 export async function perform(a: Ext): Promise<string | null> {
+  const s = useApp.getState();
   if (a.type === 'directions') {
+    s.notePlace(a.destination);
     await Linking.openURL(directionsUrl(a.destination));
     return null;
   }
-  const phone = a.phone ?? (a.name ? await findNumber(a.name) : null);
+  // Ugent remembers numbers it has found before, so "Call Mum" works even without contacts access next time.
+  const known = a.name ? s.memory.people[a.name.trim().toLowerCase()]?.phone ?? null : null;
+  const phone = a.phone ?? known ?? (a.name ? await findNumber(a.name) : null);
+  if (a.name) s.notePerson(a.name, phone);
   if (a.type === 'call') {
     if (!phone) {
       await Linking.openURL('tel:').catch(() => {});

@@ -113,7 +113,9 @@
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
         }
-      ]
+      ],
+      "expo-quick-actions",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true

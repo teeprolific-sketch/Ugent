@@ -30,9 +30,11 @@ You can propose actions. The app shows each one to the user, who confirms it bef
 - call: phone someone now. Needs name; set phone only if the user gave a number. The phone app opens and the user presses call.
 - message: send a WhatsApp or SMS now. Needs channel (whatsapp unless the user says text or SMS), name, and text written as the user would send it. WhatsApp opens with the message ready; the user presses send.
 - directions: open Google Maps directions. Needs destination.
+- remember: keep a fact the user wants you to remember about them (a name, a habit, a preference). Needs text, written as a short note.
 Fill every field that an action does not use with null. Only use event and task ids that appear in the user's data. Never invent plans the user did not ask for.
 If the user asks for something you cannot do (payments, bookings with other people, reading their messages), say so briefly and suggest what you can do instead, such as adding a reminder.
 If the user wants to tell someone they are late or busy, put a short message they can send in draft; otherwise draft is null.
+Make every reply personal. Each message comes with what you know about this person: their notes, the people and places they mention, and their weekly routines. Use those details naturally (call people by the names the user uses, plan around their routines), and never invent facts about them.
 Sleek (verified artisans), Domestica I (home robot), Afrika I (farm robot) and ID'd (scam protection) are Me AI products that are coming soon; if asked, say they are not available yet and can be found in the Ecosystem screen. If a message the user shares looks like a scam (requests for OTP, PIN or BVN, fees to release money, sudden "new number" money requests), warn them plainly.`;
 
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: 'null' }] });
@@ -51,7 +53,7 @@ const OUTPUT_SCHEMA = {
         additionalProperties: false,
         required: ['type', 'title', 'date', 'start', 'duration_minutes', 'kind', 'reason', 'minutes', 'event_id', 'task_id', 'name', 'phone', 'channel', 'text', 'destination'],
         properties: {
-          type: { type: 'string', enum: ['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions'] },
+          type: { type: 'string', enum: ['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions', 'remember'] },
           title: nullable({ type: 'string' }),
           date: nullable({ type: 'string', description: 'YYYY-MM-DD' }),
           start: nullable({ type: 'string', description: 'HH:MM, 24-hour' }),
@@ -76,7 +78,7 @@ const Output = z.object({
   reply: z.string(),
   draft: z.string().nullable(),
   actions: z.array(z.object({
-    type: z.enum(['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions']),
+    type: z.enum(['add_task', 'add_event', 'reschedule', 'move_event', 'complete_task', 'focus', 'call', 'message', 'directions', 'remember']),
     title: z.string().nullable(),
     date: z.string().nullable(),
     start: z.string().nullable(),
@@ -97,6 +99,18 @@ type Output = z.infer<typeof Output>;
 
 const isDate = (s: string | null): s is string => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const isTime = (s: string | null): s is string => !!s && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+
+/** What Ugent has learned about the person (their notes, people, places, routines). */
+function aboutLines(req: ChatRequest): string[] {
+  const a = req.state.about;
+  if (!a) return [];
+  const out: string[] = [];
+  if (a.notes.length) out.push('Things they asked you to remember:', ...a.notes.map((n) => `- ${n}`));
+  if (a.people.length) out.push(`People they often call or message: ${a.people.join(', ')}.`);
+  if (a.places.length) out.push(`Places they often go: ${a.places.join('; ')}.`);
+  if (a.routines.length) out.push('Their weekly routines:', ...a.routines.map((r) => `- ${r}`));
+  return out;
+}
 
 /** The user's data for this turn. Goes in the user message, after the stable prefix. */
 function contextBlock(req: ChatRequest, state: PlannerState, now: Date): string {
@@ -120,6 +134,7 @@ function contextBlock(req: ChatRequest, state: PlannerState, now: Date): string 
     evs.length ? evs.join('\n') : '- none',
     `Open tasks:`,
     tks.length ? tks.join('\n') : '- none',
+    ...aboutLines(req),
     `</user_data>`,
   ].join('\n');
 }
@@ -153,6 +168,8 @@ function toActions(out: Output, state: PlannerState, now: Date): { actions: Acti
       actions.push({ type: 'message', channel: a.channel ?? 'whatsapp', name: a.name?.slice(0, 80) ?? null, phone: a.phone?.replace(/[^\d+]/g, '').slice(0, 40) || null, text: a.text.slice(0, 1000) });
     } else if (a.type === 'directions' && a.destination) {
       actions.push({ type: 'directions', destination: a.destination.slice(0, 200) });
+    } else if (a.type === 'remember' && a.text && a.text.trim().length >= 2) {
+      actions.push({ type: 'remember', text: a.text.trim().slice(0, 300) });
     } else if (a.type === 'focus') {
       actions.push({ type: 'focus', mins: Math.min(240, Math.max(5, a.minutes ?? state.focusMins)) });
     }

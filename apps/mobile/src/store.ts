@@ -50,6 +50,13 @@ export interface ConnState { on: boolean; at: number; detail?: string }
 
 export type Workspace = 'personal' | 'team';
 
+/** What Ugent has learned about this person. Lives on the phone; every item can be deleted. */
+export interface Memory {
+  notes: { id: string; text: string; at: number }[];
+  people: Record<string, { name: string; count: number; phone: string | null; lastAt: number }>;
+  places: Record<string, { name: string; count: number; lastAt: number }>;
+}
+
 interface Snapshot { tasks: Task[]; events: PlanEvent[] }
 
 export interface AppState {
@@ -66,6 +73,9 @@ export interface AppState {
   places: { home: string; work: string };
   gmail: { count: number; top: { from: string; subject: string }[]; at: number } | null;
   waitlist: Product[];
+  memory: Memory;
+  /** Routine suggestions the user said "not today" to, as "title|date". */
+  routineSkips: string[];
   me: Me | null;
   tasks: Task[];
   events: PlanEvent[];
@@ -88,6 +98,13 @@ export interface AppState {
   setExternalEvents: (prefix: string, events: PlanEvent[]) => void;
   addTeamTask: (title: string, assigneeId: string | null) => Task;
   forgetChats: () => void;
+  remember: (text: string) => void;
+  skipRoutine: (key: string) => void;
+  forgetNote: (id: string) => void;
+  notePerson: (name: string, phone?: string | null) => void;
+  notePlace: (place: string) => void;
+  forgetPerson: (key: string) => void;
+  forgetPlace: (key: string) => void;
   forgetHabits: () => void;
   setProfile: (p: Partial<AppState['profile']>) => void;
   setSettings: (s: Partial<Settings>) => void;
@@ -141,6 +158,8 @@ const DEFAULTS = {
   places: { home: '', work: '' },
   gmail: null as AppState['gmail'],
   waitlist: [] as Product[],
+  memory: { notes: [], people: {}, places: {} } as Memory,
+  routineSkips: [] as string[],
   me: null,
   tasks: [] as Task[],
   events: [] as PlanEvent[],
@@ -195,7 +214,24 @@ export const useApp = create<AppState>()(
           return get().tasks.find((x) => x.id === t.id)!;
         },
         forgetChats: () => set({ messages: [] }),
-        forgetHabits: () => set((s) => ({ log: { ...s.log, completions: [], energy: [] } })),
+        skipRoutine: (key) => set((s) => ({ routineSkips: [...s.routineSkips.slice(-30), key] })),
+        remember: (text) => set((s) => ({ memory: { ...s.memory, notes: [{ id: uid(), text: text.trim(), at: Date.now() }, ...s.memory.notes].slice(0, 50) } })),
+        forgetNote: (id) => set((s) => ({ memory: { ...s.memory, notes: s.memory.notes.filter((n) => n.id !== id) } })),
+        notePerson: (name, phone) => set((s) => {
+          if (!s.settings.learn || !name.trim()) return {};
+          const k = name.trim().toLowerCase();
+          const prev = s.memory.people[k];
+          return { memory: { ...s.memory, people: { ...s.memory.people, [k]: { name: prev?.name ?? name.trim(), count: (prev?.count ?? 0) + 1, phone: phone ?? prev?.phone ?? null, lastAt: Date.now() } } } };
+        }),
+        notePlace: (place) => set((s) => {
+          if (!s.settings.learn || !place.trim()) return {};
+          const k = place.trim().toLowerCase();
+          const prev = s.memory.places[k];
+          return { memory: { ...s.memory, places: { ...s.memory.places, [k]: { name: prev?.name ?? place.trim(), count: (prev?.count ?? 0) + 1, lastAt: Date.now() } } } };
+        }),
+        forgetPerson: (k) => set((s) => { const people = { ...s.memory.people }; delete people[k]; return { memory: { ...s.memory, people } }; }),
+        forgetPlace: (k) => set((s) => { const places = { ...s.memory.places }; delete places[k]; return { memory: { ...s.memory, places } }; }),
+        forgetHabits: () => set((s) => ({ log: { ...s.log, completions: [], energy: [] }, memory: { ...s.memory, people: {}, places: {} } })),
 
         addTask: (title, date) => {
           const now = Date.now();
@@ -258,6 +294,7 @@ export const useApp = create<AppState>()(
             else if (a.type === 'moveEvent') s.updateEvent(a.move.id, { date: a.move.toDate, start: a.move.to });
             else if (a.type === 'completeTask') { const t = get().tasks.find((x) => x.id === a.id); if (t && !t.done) s.toggleTask(a.id); }
             else if (a.type === 'focus') focusMins = a.mins;
+            else if (a.type === 'remember') s.remember(a.text);
             else external.push(a); // call, message, directions: the screen opens the right app
           }
           return { focusMins, external };
@@ -350,6 +387,7 @@ export const useApp = create<AppState>()(
           places: { ...current.places, ...p.places },
           sync: { ...current.sync, ...p.sync },
           log: { ...current.log, ...p.log },
+          memory: { ...current.memory, ...p.memory },
         };
       },
       onRehydrateStorage: () => () => useApp.setState({ hydrated: true }),
@@ -379,3 +417,14 @@ export const teamMode = (s: Pick<AppState, 'me' | 'workspace'>) => inTeam(s) && 
 
 export const effectivePlan = (s: AppState): Plan => s.me?.plan ?? 'free';
 export const tomorrow = () => addDays(fmtDate(new Date()), 1);
+
+/** What Ugent knows about the person, ready to send with a chat message (most used first). */
+export function aboutMe(s: AppState, routines: string[]): { notes: string[]; people: string[]; places: string[]; routines: string[] } {
+  const top = <X extends { count: number }>(r: Record<string, X>) => Object.values(r).sort((a, b) => b.count - a.count);
+  return {
+    notes: s.memory.notes.map((n) => n.text).slice(0, 50),
+    people: top(s.memory.people).slice(0, 30).map((p) => p.name),
+    places: [s.places.home && `Home: ${s.places.home}`, s.places.work && `Work: ${s.places.work}`, ...top(s.memory.places).slice(0, 18).map((p) => p.name)].filter(Boolean) as string[],
+    routines: routines.slice(0, 20),
+  };
+}

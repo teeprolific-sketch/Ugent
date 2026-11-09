@@ -120,6 +120,8 @@ export const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('call'), name: z.string().min(1).max(80), phone: z.string().max(40).nullable() }),
   z.object({ type: z.literal('message'), channel: z.enum(['whatsapp', 'sms']), name: z.string().max(80).nullable(), phone: z.string().max(40).nullable(), text: z.string().min(1).max(1000) }),
   z.object({ type: z.literal('directions'), destination: z.string().min(1).max(200) }),
+  /** Something the user asked Ugent to remember about them ("my mum's name is Ngozi"). */
+  z.object({ type: z.literal('remember'), text: z.string().min(2).max(300) }),
 ]);
 export type Action = z.infer<typeof ActionSchema>;
 

@@ -14,6 +14,7 @@ import { initPurchases } from '@/lib/purchases';
 import { syncNow, syncSoon } from '@/lib/sync';
 import { refreshCloud, refreshImports } from '@/lib/connections';
 import { refreshTeam } from '@/lib/team';
+import { registerBackgroundWork } from '@/lib/background';
 import { useApp } from '@/store';
 import { setFontLanguage, useColors, useTheme } from '@/theme';
 
@@ -39,6 +40,7 @@ export default function RootLayout() {
     if (!ready || !onboarded) return;
     const refreshAll = () => { void syncNow().then(() => { void refreshCloud().then(refreshImports); if (useApp.getState().me?.teamId) void refreshTeam(); }); };
     refreshAll();
+    void registerBackgroundWork();
     const appSub = AppState.addEventListener('change', (st) => { if (st === 'active') refreshAll(); });
     const netSub = NetInfo.addEventListener((st) => { if (st.isConnected) syncSoon(500); });
     const storeSub = useApp.subscribe((s, prev) => {

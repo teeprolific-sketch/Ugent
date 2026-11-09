@@ -1,9 +1,9 @@
 /* Sends a chat message to the cloud agent when online, or answers on the phone when not. */
 import NetInfo from '@react-native-community/netinfo';
 import type { AgentReply } from '@ugent/core';
-import { addDays, fmtDate, respond } from '@ugent/core';
+import { addDays, detectRoutines, fmtDate, respond, weekdayName } from '@ugent/core';
 import type { ChatMessage } from '@/store';
-import { plannerState, useApp } from '@/store';
+import { aboutMe, plannerState, useApp } from '@/store';
 import { apiConfigured, ensureSession, request } from './api';
 import { fmtTime, localNow } from './format';
 
@@ -28,6 +28,7 @@ export async function askUgent(text: string, history: ChatMessage[]): Promise<Ag
         events: state.events.filter((e) => e.date >= d0 && e.date <= addDays(d0, 7)).slice(0, 300),
         tasks: state.tasks.filter((t) => !t.done).slice(0, 300),
         completions: state.log.completions.slice(-500).map((c) => ({ t: c.t })),
+        about: aboutMe(s, s.settings.learn ? detectRoutines(s.events, new Date()).map((r) => `${r.title} on ${weekdayName(r.weekday)}s around ${fmtTime(s.profile.lang)(r.start)}`) : []),
       },
     }, 35000);
     return { ...res.reply, remaining: res.remaining };
