@@ -1,13 +1,14 @@
 import { NotoSans_400Regular, NotoSans_500Medium, NotoSans_600SemiBold, NotoSans_700Bold } from '@expo-google-fonts/noto-sans';
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold, useFonts } from '@expo-google-fonts/outfit';
 import NetInfo from '@react-native-community/netinfo';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { T, ToastProvider } from '@/components/ui';
+import { Button, T, ToastProvider } from '@/components/ui';
+import { Icon } from '@/components/Icon';
 import { Wordmark } from '@/brand/Logo';
 import { initNotifications, scheduleReminders } from '@/lib/notifications';
 import { initPurchases } from '@/lib/purchases';
@@ -45,7 +46,7 @@ export default function RootLayout() {
     const netSub = NetInfo.addEventListener((st) => { if (st.isConnected) syncSoon(500); });
     const storeSub = useApp.subscribe((s, prev) => {
       if (s.tasks !== prev.tasks || s.events !== prev.events) syncSoon();
-      if (s.events !== prev.events || s.focus !== prev.focus || s.settings.reminders !== prev.settings.reminders) void scheduleReminders();
+      if (s.events !== prev.events || s.focus !== prev.focus || s.settings !== prev.settings) void scheduleReminders();
       if (s.me?.id && s.me.id !== prev.me?.id) void initPurchases(s.me.id).catch(() => {});
     });
     return () => { appSub.remove(); netSub(); storeSub(); };
@@ -62,8 +63,9 @@ export default function RootLayout() {
             <Stack.Screen name="live" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
             <Stack.Screen name="event/[id]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="focus" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
+            <Stack.Screen name="focus-summary" options={{ presentation: 'fullScreenModal' }} />
             {['analytics', 'pricing', 'settings', 'team', 'team-admin', 'ecosystem', 'connections/index', 'connections/whatsapp', 'connections/maps',
-              'profile', 'privacy', 'notifications', 'language', 'offline', 'help', 'appearance'].map((n) => <Stack.Screen key={n} name={n} />)}
+              'profile', 'privacy', 'notifications', 'language', 'offline', 'help', 'appearance', 'memory', 'search'].map((n) => <Stack.Screen key={n} name={n} />)}
           </Stack.Protected>
           <Stack.Protected guard={!onboarded}>
             <Stack.Screen name="onboarding" />
@@ -72,6 +74,22 @@ export default function RootLayout() {
         <BrandSplash />
       </ToastProvider>
     </SafeAreaProvider>
+  );
+}
+
+/** Friendly crash screen: nothing is lost (data is saved on the phone), one tap to try again. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const c = useColors();
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 16 }}>
+      <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="wrench" color={c.skyInk} size={32} />
+      </View>
+      <T v="title" center>Something went wrong</T>
+      <T muted center>Your tasks, plans and notes are safe on this phone. Try again, and if it keeps happening, tell us in Help.</T>
+      <Button label="Try again" onPress={() => void retry()} style={{ alignSelf: 'stretch' }} />
+      {__DEV__ ? <T v="small" muted center selectable>{error.message}</T> : null}
+    </View>
   );
 }
 

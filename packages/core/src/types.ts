@@ -85,7 +85,7 @@ export type PlanEvent = z.infer<typeof EventSchema>;
 export interface Completion { t: number; id?: string; sample?: boolean }
 export interface FocusLog { t: number; mins: number; sample?: boolean }
 export interface EnergyLog { t: number; v: 'low' | 'ok' | 'high' }
-export interface RescheduleLog { t: number; reason: Reason; n: number; sample?: boolean }
+export interface RescheduleLog { t: number; reason: Reason; n: number; sample?: boolean; /** How many of the moved plans started at 5 PM or later. */ evening?: number }
 export interface Logs {
   completions: Completion[];
   focus: FocusLog[];
@@ -120,6 +120,8 @@ export const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('call'), name: z.string().min(1).max(80), phone: z.string().max(40).nullable() }),
   z.object({ type: z.literal('message'), channel: z.enum(['whatsapp', 'sms']), name: z.string().max(80).nullable(), phone: z.string().max(40).nullable(), text: z.string().min(1).max(1000) }),
   z.object({ type: z.literal('directions'), destination: z.string().min(1).max(200) }),
+  /** A request to a Me AI product: book a Sleek artisan, or a command for Domestica I or Afrika I. */
+  z.object({ type: z.literal('ecosystem'), product: z.enum(['sleek', 'domestica', 'afrika']), command: z.string().min(2).max(60), detail: z.string().max(300), date: dateStr.nullable(), start: timeStr.nullable() }),
   /** Something the user asked Ugent to remember about them ("my mum's name is Ngozi"). */
   z.object({ type: z.literal('remember'), text: z.string().min(2).max(300) }),
 ]);

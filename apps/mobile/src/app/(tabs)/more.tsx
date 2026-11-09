@@ -29,6 +29,7 @@ export default function More() {
         <Row icon="more" title="Me AI ecosystem" sub="Sleek, Domestica I, Afrika I, ID'd" chevron onPress={() => router.push('/ecosystem')} />
         <Row icon="link" title="Connected apps" sub={connected ? `${connected} connected` : 'WhatsApp, Maps, Calendar and more'} chevron onPress={() => router.push('/connections')} />
         <Row icon="chart" title="Your week" sub="Simple numbers about your time" chevron onPress={() => router.push('/analytics')} />
+        <Row icon="heart" title="Memory and preferences" sub="What Ugent knows about you" chevron onPress={() => router.push('/memory')} />
       </Group>
       {inTeam(state) && (
         <Group title="Team">

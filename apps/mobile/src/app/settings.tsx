@@ -27,7 +27,8 @@ export default function Settings() {
         <Row icon="bell" title="Notifications" sub={state.settings.reminders ? `Reminders ${state.settings.leadMins} min before` : 'Reminders off'} chevron onPress={() => router.push('/notifications')} />
         <Row icon="sun" title="Appearance" sub={themeLabel} chevron onPress={() => router.push('/appearance')} />
         <Row icon="chat" title="Language" sub={langMeta(state.profile.lang).native} chevron onPress={() => router.push('/language')} />
-        <Row icon="lock" title="Privacy and memory" sub="What Ugent remembers and may do" chevron onPress={() => router.push('/privacy')} />
+        <Row icon="heart" title="Memory and preferences" sub="What Ugent has learned. Edit or delete it" chevron onPress={() => router.push('/memory')} />
+        <Row icon="lock" title="Privacy and data" sub="What Ugent may do, clear or delete data" chevron onPress={() => router.push('/privacy')} />
         <Row icon="link" title="Connected apps" chevron onPress={() => router.push('/connections')} />
         <Row icon="wifiOff" title="Offline mode" sub={online ? (pending ? `${pending} change${pending > 1 ? 's' : ''} waiting to sync` : 'Online, all synced') : 'Offline, still working'} chevron onPress={() => router.push('/offline')} />
       </Group>

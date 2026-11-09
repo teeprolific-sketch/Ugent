@@ -16,6 +16,14 @@ export default function Notifications() {
   return (
     <Screen>
       <Header back title="Notifications" sub="Ugent only notifies you when it matters." />
+      <Group title="How much Ugent tells you">
+        <Segmented value={s.notifMode} onChange={(m) => state.setSettings({ notifMode: m })} options={[['urgent', 'Urgent only'], ['smart', 'Smart'], ['all', 'Everything']]} />
+        <T v="small" muted style={{ paddingBottom: 8 }}>{s.notifMode === 'urgent'
+          ? 'Only fixed plans, meetings and places you must be. No morning brief.'
+          : s.notifMode === 'smart'
+            ? 'Your own plans, plus a "leave now" alert for anything with a place, timed with traffic buffer. Your calendar app handles imported events.'
+            : 'Every plan, including imported calendar events, plus leave-by alerts and the morning brief.'}</T>
+      </Group>
       <Group title="Plans">
         <Row title="Remind me before plans" right={<Toggle value={s.reminders} label="Remind me before plans" onChange={async (v) => { if (v && !(await ensure())) return; state.setSettings({ reminders: v }); }} />} />
         {s.reminders && (

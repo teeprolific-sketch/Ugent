@@ -167,6 +167,7 @@ export default function Live() {
           ) : (
             <Button compact kind="ghost" label="Pause" onPress={() => { active.current = false; voice.stop(); stopSpeaking(); setP('paused'); }} />
           )}
+          <Button compact kind="ghost" label="Type instead" icon="chat" onPress={() => { active.current = false; voice.stop(); stopSpeaking(); router.back(); setTimeout(() => router.navigate('/chat'), 50); }} />
         </View>
       </View>
     </View>

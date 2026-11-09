@@ -14,7 +14,7 @@ export interface ChatMessage {
   text: string;
   actions?: Action[];
   draft?: string;
-  status?: 'pending' | 'done' | 'cancelled';
+  status?: 'pending' | 'done' | 'cancelled' | 'undone';
   source?: 'device' | 'cloud';
 }
 
@@ -39,6 +39,10 @@ export interface Settings {
   travelBuffer: number;
   /** Message used for "running late" drafts. */
   lateTemplate: string;
+  /** How Ugent decides what deserves a notification. */
+  notifMode: 'all' | 'smart' | 'urgent';
+  /** Preferred answer length. */
+  replyStyle: 'short' | 'detailed';
   /** Appearance. 'auto' follows the phone's light/dark setting. */
   theme: ThemeId;
   customTheme: CustomTheme;
@@ -53,11 +57,11 @@ export type Workspace = 'personal' | 'team';
 /** What Ugent has learned about this person. Lives on the phone; every item can be deleted. */
 export interface Memory {
   notes: { id: string; text: string; at: number }[];
-  people: Record<string, { name: string; count: number; phone: string | null; lastAt: number }>;
+  people: Record<string, { name: string; count: number; phone: string | null; lastAt: number; pinned?: boolean }>;
   places: Record<string, { name: string; count: number; lastAt: number }>;
 }
 
-interface Snapshot { tasks: Task[]; events: PlanEvent[] }
+interface Snapshot { tasks: Task[]; events: PlanEvent[]; by?: string }
 
 export interface AppState {
   hydrated: boolean;
@@ -76,12 +80,20 @@ export interface AppState {
   memory: Memory;
   /** Routine suggestions the user said "not today" to, as "title|date". */
   routineSkips: string[];
+  /** Pinned routines, as "title|weekday". */
+  pinnedRoutines: string[];
+  /** Quick notes captured by text or voice. */
+  notes: { id: string; text: string; at: number; pinned?: boolean }[];
+  /** Requests saved for Me AI products that are not live yet. */
+  ecoRequests: { id: string; product: 'sleek' | 'domestica' | 'afrika'; command: string; detail: string; date: string | null; start: string | null; at: number }[];
+  /** The focus session that just ended, for the summary screen. */
+  lastFocus: { mins: number; label: string; taskId: string | null; at: number; planned: number } | null;
   me: Me | null;
   tasks: Task[];
   events: PlanEvent[];
   log: Logs;
   messages: ChatMessage[];
-  focus: { until: number; mins: number; start: number } | null;
+  focus: { until: number; mins: number; start: number; label?: string; taskId?: string | null } | null;
   sync: { cursor: number; lastAt: number | null; dirtyTasks: string[]; dirtyEvents: string[] };
   undo: Snapshot | null;
 
@@ -128,7 +140,13 @@ export interface AppState {
   updateMessage: (id: string, patch: Partial<ChatMessage>) => void;
   clearChat: () => void;
 
-  startFocus: (mins: number) => void;
+  startFocus: (mins: number, label?: string, taskId?: string | null) => void;
+  addNote: (text: string) => void;
+  updateNote: (id: string, patch: Partial<{ text: string; pinned: boolean }>) => void;
+  deleteNote: (id: string) => void;
+  editMemoryNote: (id: string, text: string) => void;
+  pinPerson: (key: string, pinned: boolean) => void;
+  pinRoutine: (key: string, pinned: boolean) => void;
   endFocus: () => number;
 
   snapshot: () => void;
@@ -143,6 +161,7 @@ const DEFAULT_SETTINGS: Settings = {
   cloudChat: true, rememberChats: true, leadMins: 10, briefTime: '07:00', quietHours: true, travelBuffer: 45,
   lateTemplate: "Hi, I'm running about {mins} minutes late because of {reason}. Sorry, I'm on my way.",
   theme: 'auto', customTheme: { base: 'light', accent: '#0EA5E9' },
+  notifMode: 'smart', replyStyle: 'short',
 };
 
 const DEFAULTS = {
@@ -160,6 +179,10 @@ const DEFAULTS = {
   waitlist: [] as Product[],
   memory: { notes: [], people: {}, places: {} } as Memory,
   routineSkips: [] as string[],
+  pinnedRoutines: [] as string[],
+  notes: [] as AppState['notes'],
+  ecoRequests: [] as AppState['ecoRequests'],
+  lastFocus: null as AppState['lastFocus'],
   me: null,
   tasks: [] as Task[],
   events: [] as PlanEvent[],
@@ -277,7 +300,7 @@ export const useApp = create<AppState>()(
           const now = Date.now();
           set((s) => ({
             events: applyMoves(s.events, moves, now),
-            log: { ...s.log, reschedules: [...s.log.reschedules, { t: now, reason, n: moves.length }] },
+            log: { ...s.log, reschedules: [...s.log.reschedules, { t: now, reason, n: moves.length, evening: moves.filter((m) => m.from >= '17:00').length }] },
           }));
           moves.forEach((m) => markEvent(m.id));
         },
@@ -295,6 +318,11 @@ export const useApp = create<AppState>()(
             else if (a.type === 'completeTask') { const t = get().tasks.find((x) => x.id === a.id); if (t && !t.done) s.toggleTask(a.id); }
             else if (a.type === 'focus') focusMins = a.mins;
             else if (a.type === 'remember') s.remember(a.text);
+            else if (a.type === 'ecosystem') {
+              // Not live yet: keep the request, and for Sleek add a task so the need is not forgotten.
+              set((st) => ({ ecoRequests: [{ id: uid(), product: a.product, command: a.command, detail: a.detail, date: a.date, start: a.start, at: Date.now() }, ...st.ecoRequests].slice(0, 50), waitlist: st.waitlist.includes(a.product) ? st.waitlist : [...st.waitlist, a.product] }));
+              if (a.product === 'sleek') s.addTask(`Arrange a ${a.command.replace(/^book\s+/, '')}${a.start ? ` (${a.date === fmtDate(new Date()) ? 'today' : 'tomorrow'} ${a.start})` : ''}`, a.date ?? undefined);
+            }
             else external.push(a); // call, message, directions: the screen opens the right app
           }
           return { focusMins, external };
@@ -320,14 +348,24 @@ export const useApp = create<AppState>()(
         updateMessage: (id, patch) => set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
         clearChat: () => set({ messages: [] }),
 
-        startFocus: (mins) => { const now = Date.now(); set({ focus: { start: now, mins, until: now + mins * 60000 } }); },
+        startFocus: (mins, label, taskId) => { const now = Date.now(); set({ focus: { start: now, mins, until: now + mins * 60000, label: label ?? '', taskId: taskId ?? null } }); },
         endFocus: () => {
           const f = get().focus;
           if (!f) return 0;
           const mins = Math.round((Math.min(Date.now(), f.until) - f.start) / 60000);
-          set((s) => ({ focus: null, log: { ...s.log, focus: mins >= 1 ? [...s.log.focus, { t: f.start, mins }] : s.log.focus } }));
+          set((s) => ({
+            focus: null,
+            lastFocus: { mins, label: f.label ?? '', taskId: f.taskId ?? null, at: Date.now(), planned: f.mins },
+            log: { ...s.log, focus: mins >= 1 ? [...s.log.focus, { t: f.start, mins }] : s.log.focus },
+          }));
           return mins;
         },
+        addNote: (text) => set((s) => ({ notes: [{ id: uid(), text: text.trim(), at: Date.now() }, ...s.notes].slice(0, 300) })),
+        updateNote: (id, patch) => set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
+        deleteNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
+        editMemoryNote: (id, text) => set((s) => ({ memory: { ...s.memory, notes: s.memory.notes.map((n) => (n.id === id ? { ...n, text: text.trim() } : n)) } })),
+        pinPerson: (k, pinned) => set((s) => (s.memory.people[k] ? { memory: { ...s.memory, people: { ...s.memory.people, [k]: { ...s.memory.people[k], pinned } } } } : {})),
+        pinRoutine: (k, pinned) => set((s) => ({ pinnedRoutines: pinned ? [...new Set([...s.pinnedRoutines, k])] : s.pinnedRoutines.filter((x) => x !== k) })),
 
         snapshot: () => set((s) => ({ undo: { tasks: s.tasks, events: s.events } })),
         restore: () => {
@@ -419,11 +457,14 @@ export const effectivePlan = (s: AppState): Plan => s.me?.plan ?? 'free';
 export const tomorrow = () => addDays(fmtDate(new Date()), 1);
 
 /** What Ugent knows about the person, ready to send with a chat message (most used first). */
+/** Stable key for a learned routine (title + weekday), used for pinning. */
+export const routineKey = (title: string, weekday: number) => `${title.trim().toLowerCase()}|${weekday}`;
+
 export function aboutMe(s: AppState, routines: string[]): { notes: string[]; people: string[]; places: string[]; routines: string[] } {
   const top = <X extends { count: number }>(r: Record<string, X>) => Object.values(r).sort((a, b) => b.count - a.count);
   return {
-    notes: s.memory.notes.map((n) => n.text).slice(0, 50),
-    people: top(s.memory.people).slice(0, 30).map((p) => p.name),
+    notes: [`Prefers ${s.settings.replyStyle === 'detailed' ? 'detailed, step-by-step' : 'short'} replies`, ...s.memory.notes.map((n) => n.text)].slice(0, 50),
+    people: top(s.memory.people).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)).slice(0, 30).map((p) => (p.pinned ? `${p.name} (important)` : p.name)),
     places: [s.places.home && `Home: ${s.places.home}`, s.places.work && `Work: ${s.places.work}`, ...top(s.memory.places).slice(0, 18).map((p) => p.name)].filter(Boolean) as string[],
     routines: routines.slice(0, 20),
   };

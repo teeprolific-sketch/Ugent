@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyMoves, bestTime, computeReschedule, detectRoutines, extractTitle, fmtDate, headsUp, parseTime, respond, routineToSuggest, sampleDay, scamCheck, searchLangs, suggestSlot, t } from './index';
+import { applyMoves, bestTime, computeReschedule, conflictFix, detectRoutines, findConflicts, insights, extractTitle, fmtDate, headsUp, parseTime, respond, routineToSuggest, sampleDay, scamCheck, searchLangs, suggestSlot, t } from './index';
 import type { PlannerState } from './index';
 
 const at = (h: number, m = 0) => new Date(2026, 10, 7, h, m); // Sat 7 Nov 2026
@@ -137,4 +137,42 @@ test('routines: weekly repeats are learned and suggested on the right day', () =
   assert.equal(routines[0].title, 'Gym'); assert.equal(routines[0].weekday, 1); assert.equal(routines[0].times, 3);
   assert.equal(routineToSuggest(routines, events, mon)?.title, 'Gym');
   assert.equal(routineToSuggest(routines, [...events, ev('Gym', '2026-11-09', '19:00')], mon), null);
+});
+
+test('clashes are found and fixed by moving the flexible plan', () => {
+  const now = at(8);
+  const s = stateAt(now);
+  const clash = { ...s.events.find((e) => e.title === 'Client call with Kemi')!, id: 'x1', title: 'Pick up fabric', start: '14:15', fixed: false, kind: 'errand' as const, dur: 30 };
+  const events = [...s.events, clash];
+  const cs = findConflicts(events, fmtDate(now));
+  assert.equal(cs.length, 1);
+  const fix = conflictFix({ ...s, events }, cs[0], now)!;
+  assert.equal(fix.id, 'x1');
+  assert.ok(fix.to >= '14:45');
+  // Two fixed plans that clash cannot be moved automatically.
+  assert.equal(conflictFix({ ...s, events }, { first: cs[0].first, second: { ...clash, fixed: true } }, now), null);
+});
+
+test('insights speak plainly about real patterns', () => {
+  const now = at(12);
+  const s = sampleDay(now);
+  const lines = insights({ completions: s.completions, events: s.events, reschedules: [{ t: now.getTime() - 86400000, reason: 'traffic', n: 3, evening: 2 }, { t: now.getTime() - 2 * 86400000, reason: 'traffic', n: 1 }, { t: now.getTime() - 3 * 86400000, reason: 'power', n: 1 }], focus: s.focus }, now);
+  // The sample week is split almost evenly around 11 AM, so no "before 11" claim; the other patterns show.
+  assert.ok(!lines.some((l) => /before 11 AM/.test(l)), lines.join(' | '));
+  assert.ok(lines.some((l) => /mostly because of traffic/.test(l)));
+  assert.ok(lines.length >= 2 && lines.length <= 4);
+  // A clearly morning person gets the morning insight.
+  const mornings = Array.from({ length: 10 }, (_, i) => ({ t: new Date(2026, 10, 7 - (i % 6), 9, i).getTime() }));
+  assert.match(insights({ completions: mornings, events: [], reschedules: [], focus: [] }, now)[0], /You finish 100% of your tasks before 11 AM/);
+  assert.ok(lines.every((l) => !/NaN|undefined/.test(l)));
+});
+
+test('ecosystem: Sleek bookings, robot commands and scam checks from chat', () => {
+  const now = at(10);
+  const s = stateAt(now);
+  const sleek = respond('Book a plumber tomorrow at 10am', s, { lang: 'en', now, fmtTime }).actions[0];
+  assert.deepEqual(sleek, { type: 'ecosystem', product: 'sleek', command: 'book plumber', detail: 'Book a plumber tomorrow at 10am', date: '2026-11-08', start: '10:00' });
+  assert.equal((respond('Domestica status', s, { lang: 'en', now, fmtTime }).actions[0] as { command: string }).command, 'status');
+  assert.equal((respond('Tell Afrika I to patrol the farm', s, { lang: 'en', now, fmtTime }).actions[0] as { product: string }).product, 'afrika');
+  assert.match(respond('Is this a scam: URGENT send your BVN and OTP now or your account will be blocked', s, { lang: 'en', now, fmtTime }).text, /looks like a scam/);
 });

@@ -1,4 +1,4 @@
-import { addDays, bestTime, energyPattern, fmtDate, parseDate } from '@ugent/core';
+import { addDays, bestTime, energyPattern, fmtDate, insights, parseDate } from '@ugent/core';
 import type { Peak } from '@ugent/core';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -6,6 +6,7 @@ import { Card, Header, Pill, Screen, Section, Segmented, T } from '@/components/
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Avatar, EmptyState } from '@/components/kit';
+import { Icon } from '@/components/Icon';
 import { memberColor, refreshTeam } from '@/lib/team';
 import { inTeam } from '@/store';
 import { useLang } from '@/hooks';
@@ -37,6 +38,7 @@ export default function Analytics() {
   const peak = bestTime(plannerState(state), now);
   const best = days[counts.indexOf(Math.max(...counts))];
   const sample = state.log.completions.some((x) => x.sample);
+  const noticed = state.settings.learn ? insights({ completions: state.log.completions, events: state.events, reschedules: state.log.reschedules, focus: state.log.focus }, now) : [];
   const focusLabel = focusMins >= 60 ? `${(focusMins / 60).toFixed(1).replace('.0', '')} h` : `${focusMins} min`;
   const show = picked ?? 6;
 
@@ -61,6 +63,19 @@ export default function Analytics() {
         {stat(focusLabel, 'Focus time')}
         {stat(String(moved), 'Plans moved')}
       </View>
+
+      {noticed.length > 0 && (
+        <Section title="What Ugent noticed">
+          <Card tint style={{ gap: 10 }}>
+            {noticed.map((line) => (
+              <View key={line} style={{ flexDirection: 'row', gap: 10 }}>
+                <Icon name="leaf" color={c.skyInk} size={20} />
+                <T style={{ flex: 1 }}>{line}</T>
+              </View>
+            ))}
+          </Card>
+        </Section>
+      )}
 
       <Section title="Tasks done each day">
         <View accessibilityLabel={`Tasks done each day: ${days.map((d, i) => `${fmtDay(d, lang, { weekday: 'long' })} ${counts[i]}`).join(', ')}`}>

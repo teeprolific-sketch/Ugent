@@ -13,6 +13,9 @@ export function fmtDay(date: string, lang: Lang, opts: Intl.DateTimeFormatOption
   try { return new Intl.DateTimeFormat(langMeta(lang).locale, opts).format(parseDate(date)); } catch { return date; }
 }
 
+/** Short date for a timestamp in the user's language, e.g. "10 Nov". */
+export const fmtStamp = (at: number, lang: Lang) => fmtDay(fmtDate(new Date(at)), lang, { day: 'numeric', month: 'short' });
+
 export const fmtDur = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}` : `${m} min`);
 
 export function dayWord(date: string, lang: Lang): string {

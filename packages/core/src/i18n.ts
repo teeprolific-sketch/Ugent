@@ -59,6 +59,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'I wrote a message for {name}. I will open {app} so you can send it.',
       directionsAction: 'I can open directions to {place}.',
       rememberAction: 'Got it. I will remember: {fact}.',
+      ecosystemSleek: 'Sleek is not live yet. I can save your request for a {trade} and add a reminder to arrange one.',
+      ecosystemDevice: '{name} is not connected yet. I can save "{command}" and run it when you connect it.',
       today: 'today', tomorrow: 'tomorrow',
     },
     pcm: {
@@ -95,6 +97,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'I don write message for {name}. I go open {app} make you send am.',
       directionsAction: 'I fit show you road go {place}.',
       rememberAction: 'I don hear. I go remember: {fact}.',
+      ecosystemSleek: 'Sleek never start yet. I fit save your request for {trade} and remind you make you arrange one.',
+      ecosystemDevice: '{name} never connect yet. I fit save "{command}" and do am when you connect am.',
       today: 'today', tomorrow: 'tomorrow',
     },
     yo: {
@@ -131,6 +135,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'Mo ti kọ ọ̀rọ̀ fún {name}. Màá ṣí {app} kí o lè fi ránṣẹ́.',
       directionsAction: 'Mo lè fi ọ̀nà sí {place} hàn ọ́.',
       rememberAction: 'Ó yé mi. Màá rántí: {fact}.',
+      ecosystemSleek: 'Sleek kò tíì bẹ̀rẹ̀. Mo lè fi ìbéèrè rẹ fún {trade} pamọ́, kí n sì rán ọ létí.',
+      ecosystemDevice: 'A kò tíì so {name} pọ̀. Mo lè fi "{command}" pamọ́ fún ìgbà tí o bá so ó pọ̀.',
       today: 'lónìí', tomorrow: 'lọ́la',
     },
     ig: {
@@ -167,6 +173,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'Edeela m ozi maka {name}. M ga-emeghe {app} ka ị zipu ya.',
       directionsAction: 'Enwere m ike igosi gị ụzọ gaa {place}.',
       rememberAction: 'Aghọtala m. M ga-echeta: {fact}.',
+      ecosystemSleek: 'Sleek amalitebeghị. Enwere m ike idowe arịrịọ gị maka {trade} ma chetara gị.',
+      ecosystemDevice: 'Ejikọbeghị {name}. Enwere m ike idowe "{command}" ruo mgbe ị jikọrọ ya.',
       today: 'taa', tomorrow: 'echi',
     },
     ha: {
@@ -203,6 +211,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'Na rubuta saƙo don {name}. Zan buɗe {app} don ka aika.',
       directionsAction: 'Zan iya nuna maka hanyar zuwa {place}.',
       rememberAction: 'Na ji. Zan tuna: {fact}.',
+      ecosystemSleek: 'Sleek bai fara aiki ba tukuna. Zan iya ajiye buƙatarka ta {trade} in tunatar da kai.',
+      ecosystemDevice: 'Ba a haɗa {name} ba tukuna. Zan iya ajiye "{command}" har sai ka haɗa shi.',
       today: 'yau', tomorrow: 'gobe',
     },
     fr: {
@@ -239,6 +249,8 @@ const T: Record<Lang, Record<string, string>> = {
       messageAction: 'J\'ai rédigé un message pour {name}. J\'ouvre {app} pour que vous l\'envoyiez.',
       directionsAction: 'Je peux ouvrir l\'itinéraire vers {place}.',
       rememberAction: 'Compris. Je retiens : {fact}.',
+      ecosystemSleek: 'Sleek n\'est pas encore disponible. Je peux enregistrer votre demande de {trade} et vous le rappeler.',
+      ecosystemDevice: '{name} n\'est pas encore connecté. Je peux garder « {command} » pour quand il le sera.',
       today: 'aujourd\'hui', tomorrow: 'demain',
     },
   };

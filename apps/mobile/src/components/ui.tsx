@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font, radius, size, space, useColors } from '@/theme';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
+import { useOnline } from '@/hooks';
+import { useApp } from '@/store';
 
 /** On web, text inputs draw a browser focus box inside our own focus border; turn that off. */
 export const webNoOutline = (Platform.OS === 'web' ? { outlineStyle: 'none' } : {}) as object;
@@ -38,14 +40,31 @@ export function T({ v = 'body', muted, color, style, children, numberOfLines, ce
 }
 
 /* ---------- Layout ---------- */
+/** Always-visible offline notice: what still works, and how many changes are waiting. Tap for details. */
+function OfflineStrip({ top }: { top: number }) {
+  const c = useColors();
+  const pending = useApp((s) => s.sync.dirtyTasks.length + s.sync.dirtyEvents.length);
+  return (
+    <Pressable onPress={() => router.push('/offline')} accessibilityRole="button" accessibilityLabel="You're offline. Open offline details"
+      style={{ paddingTop: top + 8, paddingBottom: 8, paddingHorizontal: space, backgroundColor: c.surface2, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Icon name="wifiOff" color={c.heading} size={18} />
+      <T v="small" style={{ flex: 1, fontFamily: font.semibold }}>Offline. Ugent still works{pending ? ` · ${pending} change${pending > 1 ? 's' : ''} will sync` : ''}</T>
+      <Icon name="chevR" color={c.muted} size={16} />
+    </Pressable>
+  );
+}
+
 export function Screen({ children, scroll = true, footer, padTop = true, contentStyle, scrollRef }: {
   children: ReactNode; scroll?: boolean; footer?: ReactNode; padTop?: boolean; contentStyle?: StyleProp<ViewStyle>; scrollRef?: React.RefObject<React.ComponentRef<typeof ScrollView> | null>;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const pad: ViewStyle = { paddingTop: padTop ? insets.top + 12 : 12, paddingHorizontal: space, paddingBottom: 32, gap: 24 };
+  const online = useOnline();
+  // Leave room at the bottom when a floating button (quick capture) sits over the screen.
+  const pad: ViewStyle = { paddingTop: padTop && online ? insets.top + 12 : 12, paddingHorizontal: space, paddingBottom: footer ? 104 : 32, gap: 24 };
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {!online && <OfflineStrip top={padTop ? insets.top : 0} />}
       {scroll ? (
         <ScrollView ref={scrollRef} contentContainerStyle={[pad, contentStyle]} keyboardShouldPersistTaps="handled">{children}</ScrollView>
       ) : (

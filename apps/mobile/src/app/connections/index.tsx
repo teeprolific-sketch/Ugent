@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { Group } from '@/components/kit';
 import { Button, ButtonRow, Header, Pill, Row, Screen, Sheet, T, useToast } from '@/components/ui';
 import type { ConnInfo } from '@/lib/connections';
@@ -9,6 +9,12 @@ import { effectivePlan, useApp } from '@/store';
 import { useColors } from '@/theme';
 
 const GROUPS: ConnInfo['group'][] = ['Messaging', 'Calendars and tasks', 'Places', 'Later'];
+const ECOSYSTEM = [
+  { id: 'sleek', name: 'Sleek', sub: 'Book verified artisans from chat' },
+  { id: 'domestica', name: 'Domestica I', sub: 'Home robot cleaning on your schedule' },
+  { id: 'afrika', name: 'Afrika I', sub: 'Farm patrols and alerts in your brief' },
+  { id: 'idd', name: "ID'd", sub: 'Scam checks for calls and messages' },
+] as const;
 
 export default function Connections() {
   const c = useColors();
@@ -30,9 +36,16 @@ export default function Connections() {
   };
 
   const press = (x: ConnInfo) => (x.screen ? router.push(x.screen) : setOpen(x));
+  const waitlist = useApp((s) => s.waitlist);
+  const statuses = CONNECTIONS.filter((x) => x.kind !== 'later').map(statusOf);
+  const onCount = statuses.filter((x) => x.on).length;
   return (
     <Screen>
       <Header back title="Connected apps" sub="Ugent works with the apps you already use. You choose what it can reach." />
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <Pill label={`${onCount} connected`} tone={onCount ? 'good' : 'plain'} icon={onCount ? 'check' : undefined} />
+        <Pill label={`${statuses.length - onCount} not connected`} />
+      </View>
       {GROUPS.map((g) => (
         <Group key={g} title={g}>
           {CONNECTIONS.filter((x) => x.group === g).map((x) => {
@@ -44,6 +57,17 @@ export default function Connections() {
           })}
         </Group>
       ))}
+      <Group title="Me AI ecosystem" note="Ask Ugent in chat, for example: “Find me a plumber tomorrow” or “Tell Domestica to mop the kitchen”.">
+        {ECOSYSTEM.map((x) => (
+          <Row key={x.id} title={x.name} sub={x.sub} chevron onPress={() => router.push('/ecosystem')}
+            right={<Pill label={waitlist.includes(x.id) ? 'On the list' : 'Coming soon'} tone={waitlist.includes(x.id) ? 'good' : 'plain'} />} />
+        ))}
+      </Group>
+      {Platform.OS !== 'web' && (
+        <Group title="Phone permissions" note="Contacts, calendar, location and notifications are allowed or blocked in your phone's settings. Ugent asks only when you first use each one.">
+          <Row icon="shield" title="Open phone settings for Ugent" chevron onPress={() => void Linking.openSettings()} />
+        </Group>
+      )}
       <T v="small" muted>Ugent never sends a message, makes a call or books anything without showing you first. Google accounts are read-only.</T>
 
       <Sheet visible={!!open} onClose={() => setOpen(null)} title={open?.name}>

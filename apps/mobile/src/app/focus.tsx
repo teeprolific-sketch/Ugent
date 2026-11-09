@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
-import { Button, T, useToast } from '@/components/ui';
+import { Button, T } from '@/components/ui';
 import { reportFocus } from '@/lib/api';
 import { useApp } from '@/store';
 import { font, useColors } from '@/theme';
@@ -19,18 +19,19 @@ export default function Focus() {
   }, []);
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const toast = useToast();
   const focus = useApp((s) => s.focus);
   const endFocus = useApp((s) => s.endFocus);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
-  useEffect(() => { if (!focus) { void reportFocus(null); router.back(); } }, [focus]);
+  // When the session ends (timer or button), show the summary instead of going back.
+  useEffect(() => { if (!focus) { void reportFocus(null); router.replace('/focus-summary'); } }, [focus]);
+  const waBusiness = useApp((s) => s.cloud.find((x) => x.provider === 'whatsappBusiness')?.connected);
 
   const left = focus ? Math.max(0, focus.until - now) : 0;
   useEffect(() => {
-    if (focus && left <= 0) { const mins = endFocus(); toast(`Well done. ${mins} minutes of focus.`); }
-  }, [focus, left, endFocus, toast]);
+    if (focus && left <= 0) endFocus();
+  }, [focus, left, endFocus]);
   if (!focus) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
 
   const sec = Math.ceil(left / 1000);
@@ -47,9 +48,14 @@ export default function Focus() {
         </Svg>
         <T v="hero" style={{ fontSize: 52, fontFamily: font.bold, fontVariant: ['tabular-nums'] }}>{`${Math.floor(sec / 60)}:${pad(sec % 60)}`}</T>
       </View>
-      <T v="h2" center>Ugent is holding your reminders</T>
-      <T muted center style={{ maxWidth: 300 }}>Put your phone face down. Reminders will wait quietly until the {focus.mins} minutes are up.</T>
-      <Button kind="ghost" label="End focus" onPress={() => { const mins = endFocus(); toast(mins >= 1 ? `Focus ended. ${mins} min logged.` : 'Focus ended.'); }} />
+      {focus.label ? <T v="h2" center style={{ maxWidth: 320 }}>{focus.label}</T> : null}
+      <View style={{ alignSelf: 'stretch', backgroundColor: c.surface, borderRadius: 16, padding: 16, gap: 8, maxWidth: 420 }}>
+        <T v="label">Ugent is holding</T>
+        <T v="small">• Its reminders, until you finish</T>
+        {waBusiness ? <T v="small">• WhatsApp Business: customers get your auto-reply</T> : null}
+        <T v="small" muted>For full quiet, turn on your phone's Do Not Disturb. Calls from your favourites still come through.</T>
+      </View>
+      <Button kind="ghost" label="End focus" onPress={() => { endFocus(); }} />
     </View>
   );
 }

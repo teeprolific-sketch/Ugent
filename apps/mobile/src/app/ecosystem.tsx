@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import type { IconName } from '@/components/Icon';
-import { Button, Card, Field, Header, Pill, Screen, Sheet, T, useToast } from '@/components/ui';
+import { router } from 'expo-router';
+import { Group } from '@/components/kit';
+import { Button, Card, Field, Header, IconButton, Pill, Row, Screen, Sheet, T, useToast } from '@/components/ui';
+import { useLang } from '@/hooks';
+import { dayWord, fmtTime } from '@/lib/format';
 import { apiConfigured, ensureSession, request } from '@/lib/api';
 import { useApp } from '@/store';
 import { useColors } from '@/theme';
@@ -21,6 +25,9 @@ export default function Ecosystem() {
   const toast = useToast();
   const waitlist = useApp((s) => s.waitlist);
   const setWaitlist = useApp((s) => s.setWaitlist);
+  const requests = useApp((s) => s.ecoRequests);
+  const lang = useLang();
+  const f = fmtTime(lang);
   const [check, setCheck] = useState(false);
   const [text, setText] = useState('');
   const [result, setResult] = useState<ScamResult | null>(null);
@@ -59,6 +66,14 @@ export default function Ecosystem() {
           </Card>
         );
       })}
+
+      <Group title="Your requests" note="Ugent keeps these and sends them when each product launches. Ask in chat: “Find a mechanic for Saturday”, “Domestica, mop the kitchen”, “Afrika, patrol the farm tonight”.">
+        {requests.length ? requests.slice(0, 10).map((r) => (
+          <Row key={r.id} icon={r.product === 'sleek' ? 'wrench' : r.product === 'domestica' ? 'robot' : 'leaf'} title={r.detail}
+            sub={`${PRODUCTS.find((p) => p.id === r.product)?.name}${r.date ? ` · ${dayWord(r.date, lang)}${r.start ? `, ${f(r.start)}` : ''}` : ''} · waiting for launch`}
+            right={<IconButton icon="x" label={`Remove request: ${r.detail}`} onPress={() => { useApp.setState((st) => ({ ecoRequests: st.ecoRequests.filter((x) => x.id !== r.id) })); toast('Request removed'); }} />} />
+        )) : <Row icon="chat" title="No requests yet" sub="Ask Ugent in chat and it saves the request here." chevron onPress={() => router.navigate('/chat')} />}
+      </Group>
 
       <Sheet visible={check} onClose={() => setCheck(false)} title="Is this a scam?">
         <T v="small" muted>Paste an SMS, WhatsApp or email you're unsure about. It's checked on your phone and not sent anywhere.</T>

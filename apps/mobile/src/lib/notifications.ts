@@ -1,4 +1,5 @@
 /* Local reminders for upcoming plans. Focus mode holds them: they arrive silently in the list instead. */
+import type { PlanEvent } from '@ugent/core';
 import { fmtDate, t, toMin } from '@ugent/core';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -44,23 +45,33 @@ export async function scheduleReminders() {
     const lead = s.settings.leadMins;
     const quiet = (d: Date) => s.settings.quietHours && asleep(d, s.profile.wake, s.profile.sleep);
     const fmt = fmtTime(s.profile.lang);
-    const upcoming = (s.settings.reminders ? liveEvents(s) : [])
-      .map((e) => {
-        const [y, m, d] = e.date.split('-').map(Number);
-        const start = new Date(y, m - 1, d, 0, toMin(e.start));
-        return { e, at: new Date(start.getTime() - lead * 60000) };
-      })
-      .filter(({ e, at }) => at.getTime() > now && at.getTime() < now + 48 * 3600000 && !quiet(at) && (!e.teamId || !e.ownerId || e.ownerId === s.me?.id))
+    const mode = s.settings.notifMode;
+    // Urgent: only things that can't move (fixed plans, meetings, places to be). Smart: your own plans
+    // (your calendar app already reminds you of imported events) plus leave-by alerts. All: everything.
+    const wanted = (e: PlanEvent) => mode === 'all' || (mode === 'smart' ? !e.external : e.fixed || e.kind === 'meeting' || !!e.location);
+    const startOf = (e: PlanEvent) => { const [y, m, d] = e.date.split('-').map(Number); return new Date(y, m - 1, d, 0, toMin(e.start)); };
+    const mine = (s.settings.reminders ? liveEvents(s) : []).filter((e) => (!e.teamId || !e.ownerId || e.ownerId === s.me?.id) && wanted(e));
+    const alerts: { e: PlanEvent; at: Date; leave: boolean }[] = [];
+    for (const e of mine) {
+      const start = startOf(e);
+      // Somewhere to go: one "leave by" alert (travel buffer + 10 min) replaces the usual reminder.
+      const leave = mode !== 'urgent' && !!e.location && !e.external;
+      alerts.push({ e, at: new Date(start.getTime() - (leave ? s.settings.travelBuffer + 10 : lead) * 60000), leave });
+    }
+    const upcoming = alerts
+      .filter(({ at }) => at.getTime() > now && at.getTime() < now + 48 * 3600000 && !quiet(at))
       .sort((a, b) => a.at.getTime() - b.at.getTime())
       .slice(0, 30);
-    for (const { e, at } of upcoming) {
+    for (const { e, at, leave } of upcoming) {
       await Notifications.scheduleNotificationAsync({
-        content: { title: e.title, body: `Starts at ${fmt(e.start)}${e.location ? ` at ${e.location}` : ''}${e.fixed ? '' : '. Plans changed? Open Ugent to move it.'}` },
+        content: leave
+          ? { title: `Leave soon for ${e.title}`, body: `It starts at ${fmt(e.start)} at ${e.location}. About ${s.settings.travelBuffer} min to get there.` }
+          : { title: e.title, body: `Starts at ${fmt(e.start)}${e.location ? ` at ${e.location}` : ''}${e.fixed ? '' : '. Plans changed? Open Ugent to move it.'}` },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: 'reminders' },
       });
     }
     // Morning brief: the next one, with that day's numbers.
-    if (s.settings.briefTime) {
+    if (s.settings.briefTime && mode !== 'urgent') {
       const [h, m] = s.settings.briefTime.split(':').map(Number);
       const at = new Date(); at.setHours(h, m, 0, 0);
       if (at.getTime() <= now) at.setDate(at.getDate() + 1);

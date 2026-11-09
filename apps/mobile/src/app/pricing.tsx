@@ -79,6 +79,7 @@ export default function Pricing() {
             if (!purchasesAvailable()) { setNotReady(true); return; }
             try { const p = await restore(); onPlan(p); toast(p === 'free' ? 'No purchases found for this account.' : 'Purchases restored'); } catch { toast('Could not reach the store. Try again.'); }
           }} />
+          {plan !== 'free' && Platform.OS !== 'web' ? <LinkButton label="Manage subscription" onPress={() => Linking.openURL(Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions?package=ai.meai.ugent')} /> : null}
           {API_URL ? <LinkButton label="Privacy policy" onPress={() => Linking.openURL(`${API_URL}/privacy`)} /> : null}
         </View>
       </View>

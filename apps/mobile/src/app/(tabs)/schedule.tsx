@@ -1,12 +1,13 @@
 import type { PlanEvent } from '@ugent/core';
-import { addDays, fmtDate, minOfDay, parseDate, toMin } from '@ugent/core';
+import { addDays, applyMoves, conflictFix, findConflicts, fmtDate, minOfDay, parseDate, toMin } from '@ugent/core';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PlansChangedSheet } from '@/components/blocks';
+import { CaptureButton } from '@/components/QuickCapture';
 import { Icon } from '@/components/Icon';
 import { EmptyState, WorkspaceSwitcher } from '@/components/kit';
-import { Button, ButtonRow, Chip, Header, Pill, Screen, Segmented, T } from '@/components/ui';
+import { Button, ButtonRow, Card, Chip, Header, Pill, Screen, Segmented, T, useToast } from '@/components/ui';
 import { useLang, useNow } from '@/hooks';
 import { fmtDay, fmtDur, fmtTime, KIND_LABEL } from '@/lib/format';
 import { memberColor, memberName } from '@/lib/team';
@@ -38,6 +39,11 @@ export default function Schedule() {
   const onDay = (d: string) => source.filter((e) => e.date === d).sort((a, b) => a.start.localeCompare(b.start));
   const evs = onDay(shown);
   const nowM = minOfDay(now);
+  const toast = useToast();
+  // Clashes on the shown day (personal view), with a one-tap fix for the first one.
+  const clashes = team ? [] : findConflicts(evs, shown);
+  const clashIds = new Set(clashes.flatMap((x) => [x.first.id, x.second.id]));
+  const fix = clashes[0] ? conflictFix(plannerState(state), clashes[0], now) : null;
 
   const card = (e: PlanEvent) => (
     <Pressable onPress={() => router.push(`/event/${e.id}`)} accessibilityRole="button" accessibilityLabel={`${e.title} at ${f(e.start)}`}
@@ -49,6 +55,7 @@ export default function Schedule() {
         {e.external ? <Pill label="From your calendar" icon="calendar" tone="onCard" /> : <Pill label={KIND_LABEL[e.kind]} tone="onCard" />}
         {e.fixed && !e.external && <Pill label="Fixed" icon="lock" tone="onCard" />}
         {e.location && <Pill label={e.location} icon="car" tone="onCard" />}
+        {clashIds.has(e.id) && <Pill label="Clash" icon="clock" tone="onCard" />}
         {!team && e.teamId && <Pill label="Team" icon="users" tone="onCard" />}
       </View>
     </Pressable>
@@ -75,7 +82,7 @@ export default function Schedule() {
   if (!nowShown && evs.length) timeline.push(nowLine('now-end'));
 
   return (
-    <Screen>
+    <Screen footer={<CaptureButton />}>
       <Header title={team ? 'Team calendar' : 'Schedule'} sub={mode === 'day' ? fmtDay(shown, lang, { weekday: 'long', day: 'numeric', month: 'long' }) : 'This week'} />
       <WorkspaceSwitcher />
       <Segmented value={mode} onChange={setMode} options={[['day', 'Day'], ['week', 'Week']]} />
@@ -105,6 +112,12 @@ export default function Schedule() {
             <Button label={team ? 'Add team plan' : 'Add plan'} icon="plus" kind={shown === d0 && !team ? 'ghost' : 'primary'} style={{ flexGrow: 1, flexBasis: 150 }}
               onPress={() => router.push({ pathname: '/event/[id]', params: { id: 'new', date: shown, team: team ? '1' : '' } })} />
           </ButtonRow>
+          {clashes.length > 0 && (
+            <Card>
+              <T>{clashes.length === 1 ? 'Two plans overlap' : `${clashes.length} overlaps`} on this day.{fix ? ` Move ${fix.title} to ${f(fix.to)}${fix.toDate !== shown ? ' the next day' : ''}?` : ' They both have fixed times.'}</T>
+              {fix && <Button compact label="Fix it" onPress={() => { state.snapshot(); useApp.setState((st) => ({ events: applyMoves(st.events, [fix], Date.now()), sync: { ...st.sync, dirtyEvents: [...new Set([...st.sync.dirtyEvents, fix.id])] } })); toast(`Moved ${fix.title} to ${f(fix.to)}`, state.restore); }} />}
+            </Card>
+          )}
           {evs.length ? <View style={{ gap: 10 }}>{timeline}</View> : (
             <EmptyState icon="calendar" title={team ? 'No shared plans this day' : 'Nothing planned this day'}
               body={team ? 'Plans shared with the team show here, coloured by person.' : 'Add a plan, or tell Ugent in chat and it will find the best time.'} />

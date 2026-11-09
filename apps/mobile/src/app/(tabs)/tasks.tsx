@@ -4,15 +4,17 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { TaskRow } from '@/components/blocks';
+import { CaptureButton } from '@/components/QuickCapture';
+import { useLocalSearchParams } from 'expo-router';
 import { Avatar, EmptyState, WorkspaceSwitcher } from '@/components/kit';
-import { Button, Field, Header, List, Pill, Row, Screen, Segmented, Sheet, T, useToast } from '@/components/ui';
+import { Button, Field, Header, IconButton, List, Pill, Row, Screen, Segmented, Sheet, T, useToast } from '@/components/ui';
 import { useLang } from '@/hooks';
-import { dayWord, fmtTime } from '@/lib/format';
+import { dayWord, fmtStamp, fmtTime } from '@/lib/format';
 import { memberColor, memberName } from '@/lib/team';
 import { liveTasks, plannerState, teamMode, useApp } from '@/store';
 import { radius, useColors } from '@/theme';
 
-type Filter = 'today' | 'all' | 'done';
+type Filter = 'today' | 'all' | 'done' | 'notes';
 
 export default function Tasks() {
   const state = useApp();
@@ -20,10 +22,12 @@ export default function Tasks() {
 }
 
 function PersonalTasks() {
+  const c = useColors();
   const lang = useLang();
   const toast = useToast();
   const state = useApp();
-  const [filter, setFilter] = useState<Filter>('today');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [filter, setFilter] = useState<Filter>(params.tab === 'notes' ? 'notes' : 'today');
   const [title, setTitle] = useState('');
   const [menuId, setMenuId] = useState<string | null>(null);
   const d0 = fmtDate(new Date());
@@ -36,15 +40,30 @@ function PersonalTasks() {
   const add = () => { if (title.trim()) { state.addTask(title); setTitle(''); } };
 
   return (
-    <Screen>
+    <Screen footer={<CaptureButton />}>
       <Header title="Tasks" sub={`${all.filter((x) => !x.done).length} open`} />
       <WorkspaceSwitcher />
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-end' }}>
         <View style={{ flex: 1 }}><Field value={title} onChangeText={setTitle} placeholder="Add a task" onSubmitEditing={add} returnKeyType="done" accessibilityLabel="New task" blurOnSubmit={false} /></View>
         <Button label="Add" icon="plus" onPress={add} style={{ paddingHorizontal: 16 }} />
       </View>
-      <Segmented value={filter} onChange={setFilter} options={[['today', 'Today'], ['all', 'All'], ['done', 'Done']]} />
-      {list.length ? <List>{list.map((x) => <TaskRow key={x.id} task={x} onMenu={() => setMenuId(x.id)} />)}</List> : (
+      <Segmented value={filter} onChange={setFilter} options={[['today', 'Today'], ['all', 'All'], ['done', 'Done'], ['notes', 'Notes']]} />
+      {filter === 'notes' ? (
+        state.notes.length ? (
+          <List>
+            {[...state.notes].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.at - a.at).map((n) => (
+              <View key={n.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <T>{n.text}</T>
+                  <T v="small" muted>{fmtStamp(n.at, lang)}{n.pinned ? ' · Pinned' : ''}</T>
+                </View>
+                <IconButton icon="star" label={n.pinned ? 'Unpin note' : 'Pin note'} color={n.pinned ? c.sky : undefined} onPress={() => state.updateNote(n.id, { pinned: !n.pinned })} />
+                <IconButton icon="trash" label="Delete note" onPress={() => { state.deleteNote(n.id); toast('Note deleted'); }} />
+              </View>
+            ))}
+          </List>
+        ) : <EmptyState icon="info" title="No notes yet" body="Tap + and jot anything down: a price, an address, an idea. Ugent keeps it here." />
+      ) : list.length ? <List>{list.map((x) => <TaskRow key={x.id} task={x} onMenu={() => setMenuId(x.id)} />)}</List> : (
         filter === 'done'
           ? <EmptyState icon="check" title="Nothing finished yet" body="Tick a task when you're done. Ugent learns your best time of day from it." />
           : all.length === 0

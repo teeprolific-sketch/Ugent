@@ -1,19 +1,21 @@
 import type { Reason } from '@ugent/core';
-import { bestTime, computeReschedule, detectRoutines, fmtDate, headsUp, minOfDay, routineToSuggest, toMin, weekdayName } from '@ugent/core';
+import { addDays, applyMoves, bestTime, computeReschedule, conflictFix, detectRoutines, findConflicts, fmtDate, headsUp, minOfDay, routineToSuggest, toMin, weekdayName } from '@ugent/core';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { PlansChangedSheet, TaskRow } from '@/components/blocks';
-import { EmptyState, WorkspaceSwitcher } from '@/components/kit';
+import { Avatar, EmptyState, WorkspaceSwitcher } from '@/components/kit';
+import { FocusSetupSheet } from '@/components/FocusSetup';
+import { CaptureButton } from '@/components/QuickCapture';
+import { perform } from '@/lib/actions';
 import { TeamHome } from '@/components/TeamHome';
-import { Button, ButtonRow, Card, Chip, LinkButton, List, Pill, Screen, Section, T, useToast } from '@/components/ui';
-import { useLang, useNow, useOnline, useT } from '@/hooks';
+import { Button, ButtonRow, Card, Chip, IconButton, LinkButton, List, Pill, Screen, Section, Sheet, T, useToast } from '@/components/ui';
+import { useLang, useNow, useT } from '@/hooks';
 import { fmtDay, fmtDur, fmtTime, KIND_LABEL, timeParts } from '@/lib/format';
 import { travelMinutes } from '@/lib/maps';
-import { reportFocus } from '@/lib/api';
 import { fromMin } from '@ugent/core';
-import { liveEvents, liveTasks, plannerState, teamMode, useApp } from '@/store';
+import { liveEvents, liveTasks, plannerState, routineKey, teamMode, useApp } from '@/store';
 import { font, useColors } from '@/theme';
 
 export default function Home() {
@@ -21,11 +23,13 @@ export default function Home() {
   const t = useT();
   const lang = useLang();
   const now = useNow();
-  const online = useOnline();
   const toast = useToast();
   const state = useApp();
   const [plansSheet, setPlansSheet] = useState<Reason | null | false>(false);
   const [leave, setLeave] = useState<{ id: string; minutes: number; live: boolean } | null>(null);
+  const [focusSetup, setFocusSetup] = useState(false);
+  const [person, setPerson] = useState<{ name: string; phone: string | null } | null>(null);
+  const [kept, setKept] = useState<string[]>([]);
 
   const d0 = fmtDate(now);
   const hr = now.getHours();
@@ -62,19 +66,37 @@ export default function Home() {
     ? `Leave by ${fmtTime(lang)(fromMin(toMin(withPlace.start) - leave.minutes - 10))} for ${withPlace.title} (${leave.minutes} min${leave.live ? ' with traffic now' : ', your usual buffer'}).`
     : null;
   // Personal routine: something they usually do on this weekday that isn't planned yet.
-  const suggested = state.settings.learn ? routineToSuggest(detectRoutines(state.events, now), liveEvents(state), now) : null;
+  const suggested = state.settings.learn ? routineToSuggest(detectRoutines(state.events, now).sort((a, b) => Number(state.pinnedRoutines.includes(routineKey(b.title, b.weekday))) - Number(state.pinnedRoutines.includes(routineKey(a.title, a.weekday)))), liveEvents(state), now) : null;
   const routine = suggested && !state.routineSkips.includes(`${suggested.title.toLowerCase()}|${d0}`) ? suggested : null;
+  // Evening wrap-up after 5 PM; morning brief before.
+  const evening = hr >= 17;
+  const doneToday = state.log.completions.filter((x) => fmtDate(new Date(x.t)) === d0).length;
+  const focusToday = state.log.focus.filter((x) => fmtDate(new Date(x.t)) === d0).reduce((a, x) => a + x.mins, 0);
+  const firstTomorrow = ps.events.filter((e) => e.date === addDays(d0, 1)).sort((a, b) => a.start.localeCompare(b.start))[0];
+  // Gentle energy note: when this person is strongest, and the important thing to use it on.
+  const peakNow = bestTime(ps, now);
+  const importantTask = top.find((x) => x.important);
+  const energyNote = importantTask && ((peakNow === 'morning' && hr < 12) || (peakNow === 'afternoon' && hr < 17))
+    ? `Your strongest hours are this ${peakNow}. A good time for "${importantTask.title}".` : null;
+  // Clashes today and tomorrow, with a one-tap fix.
+  const clashes = [...findConflicts(ps.events, d0), ...findConflicts(ps.events, addDays(d0, 1))]
+    .filter((x) => (x.first.date !== d0 || toMin(x.second.start) + x.second.dur > minOfDay(now)) && !kept.includes(`${x.first.id}|${x.second.id}`));
+  const clashFix = clashes[0] ? conflictFix(ps, clashes[0], now) : null;
+  // Pinned people for one-tap call or WhatsApp.
+  const pinned = Object.values(state.memory.people).filter((p) => p.pinned).slice(0, 4);
   const gmail = state.gmail && state.gmail.count > 0
     ? `${state.gmail.count} important unread email${state.gmail.count > 1 ? 's' : ''}${state.gmail.top[0] ? `, latest from ${state.gmail.top[0].from}` : ''}.`
     : null;
   return (
-    <Screen>
+    <Screen footer={team ? undefined : <CaptureButton />}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <View style={{ flex: 1, gap: 4 }}>
           <T v="title">{t(hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening')}{name ? `, ${name}` : ''}</T>
           <T muted>{fmtDay(d0, lang, { weekday: 'long', day: 'numeric', month: 'long' })}</T>
         </View>
-        {!online && <Pill label="Offline, still working" icon="wifiOff" />}
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <IconButton icon="search" label="Search" onPress={() => router.push('/search')} />
+        </View>
       </View>
       <WorkspaceSwitcher />
       {team ? <TeamHome /> : <>
@@ -87,9 +109,17 @@ export default function Home() {
       )}
 
       <Card tint>
-        <T v="h2">{t('home.brief')}</T>
+        <T v="h2">{evening ? 'Your evening wrap-up' : t('home.brief')}</T>
         <View style={{ gap: 10 }}>
-          <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="calendar" color={c.skyInk} /><T style={{ flex: 1 }}>{t('brief', { e: evs.length, t: open.length })}</T></View>
+          {evening ? (
+            <>
+              <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="check" color={c.skyInk} /><T style={{ flex: 1 }}>{doneToday ? `You finished ${doneToday} task${doneToday > 1 ? 's' : ''} today${focusToday ? ` and focused for ${focusToday} minutes` : ''}.` : 'A quiet day. Rest counts too.'}{open.length ? ` ${open.length} still open.` : ''}</T></View>
+              <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="moon" color={c.skyInk} /><T style={{ flex: 1 }}>{firstTomorrow ? `Tomorrow starts with ${firstTomorrow.title} at ${fmtTime(lang)(firstTomorrow.start)}.` : 'Nothing planned for tomorrow yet.'}</T></View>
+            </>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="calendar" color={c.skyInk} /><T style={{ flex: 1 }}>{t('brief', { e: evs.length, t: open.length })}</T></View>
+          )}
+          {!evening && energyNote && <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="bolt" color={c.skyInk} /><T style={{ flex: 1 }}>{energyNote}</T></View>}
           {leaveLine
             ? <View style={{ flexDirection: 'row', gap: 12 }}><Icon name="car" color={c.skyInk} /><T style={{ flex: 1 }}>{leaveLine}</T></View>
             : <View style={{ flexDirection: 'row', gap: 12 }}><Icon name={hu.key === 'headsTraffic' ? 'car' : hu.key === 'headsPower' ? 'bolt' : 'sun'} color={c.skyInk} /><T style={{ flex: 1 }}>{heads}</T></View>}
@@ -105,6 +135,31 @@ export default function Home() {
         )}
       </Card>
 
+      {clashes.length > 0 && (
+        <Card>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Icon name="clock" color={c.warn} />
+            <T style={{ flex: 1 }}><T style={{ fontFamily: font.semibold }}>{clashes[0].first.title}</T> and <T style={{ fontFamily: font.semibold }}>{clashes[0].second.title}</T> clash{clashes[0].first.date === d0 ? ' today' : ' tomorrow'} at {fmtTime(lang)(clashes[0].second.start)}.{clashFix ? ` Move ${clashFix.title} to ${fmtTime(lang)(clashFix.to)}?` : ' Both have fixed times, so pick one.'}</T>
+          </View>
+          <ButtonRow>
+            {clashFix && <Button compact label="Fix it" style={{ flexGrow: 1 }} onPress={() => { state.snapshot(); useApp.setState((st) => ({ events: applyMoves(st.events, [clashFix], Date.now()), sync: { ...st.sync, dirtyEvents: [...new Set([...st.sync.dirtyEvents, clashFix.id])] } })); toast(`Moved ${clashFix.title} to ${fmtTime(lang)(clashFix.to)}`, state.restore); }} />}
+            <Button compact kind="ghost" label="Keep both" style={{ flexGrow: 1 }} onPress={() => setKept([...kept, `${clashes[0].first.id}|${clashes[0].second.id}`])} />
+          </ButtonRow>
+        </Card>
+      )}
+      {pinned.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <T v="label">Your people</T>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {pinned.map((p) => (
+              <Card key={p.name} onPress={() => setPerson({ name: p.name, phone: p.phone })} label={`Contact ${p.name}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, paddingRight: 16 }}>
+                <Avatar name={p.name} size={30} />
+                <T v="strong">{p.name}</T>
+              </Card>
+            ))}
+          </View>
+        </View>
+      )}
       {routine && (
         <Card>
           <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -146,11 +201,18 @@ export default function Home() {
 
       <ButtonRow>
         <Button label={t('home.talk')} icon="chat" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => router.navigate('/chat')} />
-        <Button label={t('home.focus')} icon="focus" kind="ghost" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => { state.startFocus(state.settings.focusMins); void reportFocus(Date.now() + state.settings.focusMins * 60000); router.push('/focus'); }} />
+        <Button label={t('home.focus')} icon="focus" kind="ghost" style={{ flexGrow: 1, flexBasis: 150 }} onPress={() => setFocusSetup(true)} />
       </ButtonRow>
 
       </>}
       <PlansChangedSheet visible={plansSheet !== false} initial={plansSheet || null} onClose={() => setPlansSheet(false)} />
+      <FocusSetupSheet visible={focusSetup} onClose={() => setFocusSetup(false)} />
+      <Sheet visible={!!person} onClose={() => setPerson(null)} title={person?.name}>
+        <ButtonRow>
+          <Button label="Call" icon="chat" style={{ flexGrow: 1 }} onPress={async () => { const p = person!; setPerson(null); const note = await perform({ type: 'call', name: p.name, phone: p.phone }); if (note) toast(note); }} />
+          <Button label="WhatsApp" icon="send" kind="ghost" style={{ flexGrow: 1 }} onPress={async () => { const p = person!; setPerson(null); const note = await perform({ type: 'message', channel: 'whatsapp', name: p.name, phone: p.phone, text: `Hi ${p.name}, ` }); if (note) toast(note); }} />
+        </ButtonRow>
+      </Sheet>
     </Screen>
   );
 }

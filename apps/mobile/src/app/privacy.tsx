@@ -1,6 +1,7 @@
 import { bestTime, detectRoutines, langMeta, weekdayName } from '@ugent/core';
 import { fmtTime } from '@/lib/format';
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Icon } from '@/components/Icon';
@@ -51,6 +52,7 @@ export default function Privacy() {
         <Row icon="chart" title="Habits" sub={`${state.log.completions.length} finished-task times, ${state.log.energy.length} energy check-ins, people and places`} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('habits')} />
         <Row icon="pin" title="Places" sub={state.places.home || state.places.work ? [state.places.home && 'Home', state.places.work && 'Work'].filter(Boolean).join(', ') : 'None saved'} right={<T v="small" color={c.danger}>Clear</T>} onPress={() => setForget('places')} />
         <Row icon="eye" title="See everything Ugent knows" chevron onPress={() => setKnown(true)} />
+        <Row icon="heart" title="Edit memory and preferences" sub="Notes, people, routines, reply style" chevron onPress={() => router.push('/memory')} />
       </Group>
 
       <Group title="What Ugent has learned about you" note="Ugent uses these to make answers personal. Tap any item to delete it.">

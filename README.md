@@ -39,7 +39,7 @@ brand/          Logo source and the script that renders every icon and splash im
 17. Team admin: members, roles, invite code, removal
 18. Profile
 19. Settings
-20. Privacy and memory
+20. Privacy and data
 21. Notifications
 22. Language (with search)
 23. Offline mode status
@@ -47,6 +47,21 @@ brand/          Logo source and the script that renders every icon and splash im
 25. Empty states throughout for new users
 
 People on the Team plan get a **Personal / Team** switcher on Home, Schedule and Tasks. Pro accounts never see team elements.
+
+Also: **Search** (tasks, plans, notes, people, chats and settings; works offline), **Memory and preferences** (edit or delete what Ugent learned, star people and routines, reply style), **Focus summary** after each session, and a friendly **error screen** if something breaks.
+
+## Everyday features
+
+- **Daily brief:** morning brief before 5 PM, evening wrap-up after. Shows clashes with a one-tap fix, a gentle energy note (your strongest hours and the important task to use them on), traffic and leave-by times, and routine suggestions.
+- **Quick capture:** the round + button on Home, Plan and Tasks. Type or speak; Ugent shows whether it understood a task, a timed plan or a note before you save.
+- **Smart reschedule:** clashes are flagged on Home and in the day view; *Fix it* moves the flexible plan to the next free slot. Fixed and imported plans never move. Every change can be undone.
+- **Focus mode:** pick a length and what you're working on (or a task). Reminders are held and WhatsApp Business can auto-reply; the summary asks if you finished and lets you jot a note.
+- **Ecosystem commands from chat:** "Find me a plumber tomorrow at 10am" (Sleek), "Domestica, mop the kitchen", "Afrika, patrol the farm tonight". Until each product launches, Ugent saves the request, joins you to the waitlist and, for Sleek, adds a reminder task. Requests are listed in *Me AI ecosystem*.
+- **Insights:** *Your week* has "What Ugent noticed": plain sentences about when you get things done, your busiest day, streaks, focus time and evening reschedules.
+- **Notifications:** *Urgent only* (fixed plans, meetings, places to be), *Smart* (default: your own plans plus a "leave now" alert for plans with a place) or *Everything*. Quiet hours and focus always hold them.
+- **Offline:** a strip at the top of every screen says you're offline, that Ugent still works, and how many changes will sync. Tap it for details.
+- **Undo:** toasts offer Undo, and the latest action Ugent took in chat keeps an Undo button.
+- **Live ↔ chat:** *Type instead* in Live hands over to chat with the conversation intact.
 
 ## Live, voice and personalisation
 

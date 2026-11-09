@@ -68,15 +68,15 @@ function place(events: PlanEvent[], date: DateStr, earliest: number, dur: number
 }
 
 /** Best slot for a new plan: heavy work goes into the user's best time, everything else into the next gap. */
-export function suggestSlot(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr) {
-  return withDay(state, () => suggestSlotIn(state, kind, dur, now, date));
+export function suggestSlot(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr, notBefore?: number) {
+  return withDay(state, () => suggestSlotIn(state, kind, dur, now, date, notBefore));
 }
-function suggestSlotIn(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr) {
+function suggestSlotIn(state: PlannerState, kind: Kind, dur: number, now: Date, date?: DateStr, notBefore?: number) {
   const d0 = fmtDate(now);
   const nowM = minOfDay(now);
   date = date ?? d0;
   const ps = PEAK_START[bestTime(state, now)];
-  let earliest = date === d0 ? nowM + 15 : bounds.start + 60;
+  let earliest = Math.max(date === d0 ? nowM + 15 : bounds.start + 60, notBefore ?? 0);
   if (kind === 'deep') {
     if (date === d0 && nowM > ps + 120) { date = addDays(date, 1); earliest = ps; } else earliest = Math.max(earliest, ps);
   }

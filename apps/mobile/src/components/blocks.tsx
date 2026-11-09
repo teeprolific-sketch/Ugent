@@ -41,6 +41,8 @@ export function moveLine(m: Move, lang: ReturnType<typeof useLang>) {
 }
 
 /** One line per proposed action, shown in chat before the user agrees. */
+const ECO_NAME = { sleek: 'Sleek', domestica: 'Domestica I', afrika: 'Afrika I' } as const;
+
 export function ActionLines({ actions }: { actions: Action[] }) {
   const c = useColors();
   const lang = useLang();
@@ -64,6 +66,8 @@ export function ActionLines({ actions }: { actions: Action[] }) {
         if (a.type === 'message') return [line('send', `${a.channel === 'sms' ? 'SMS' : 'WhatsApp'} to ${a.name ?? 'someone'}: "${a.text}"`, `${i}`)];
         if (a.type === 'directions') return [line('car', `Directions to ${a.destination} in Google Maps`, `${i}`)];
         if (a.type === 'remember') return [line('info', `Remember: ${a.text}`, `${i}`)];
+        if (a.type === 'ecosystem') return [line(a.product === 'sleek' ? 'wrench' : a.product === 'domestica' ? 'robot' : 'leaf',
+          `${ECO_NAME[a.product]}: ${a.detail}${a.date ? ` · ${dayWord(a.date, lang)}${a.start ? `, ${f(a.start)}` : ''}` : ''}`, `${i}`)];
         return [];
       })}
     </View>

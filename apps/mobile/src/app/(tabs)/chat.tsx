@@ -33,6 +33,11 @@ export default function Chat() {
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const messages = useApp((s) => s.messages);
+  // Undo stays available on the latest action Ugent took that changed tasks or plans.
+  const undoBy = useApp((s) => s.undo?.by);
+  const UNDOABLE = ['addTask', 'addEvent', 'reschedule', 'moveEvent', 'completeTask'];
+  const lastActed = [...messages].reverse().find((m) => m.actions?.length && m.status && m.status !== 'pending' && m.status !== 'cancelled');
+  const undoId = lastActed?.status === 'done' && lastActed.actions!.some((a) => UNDOABLE.includes(a.type)) ? lastActed.id : null;
   const profile = useApp((s) => s.profile);
   const settings = useApp((s) => s.settings);
   const { pushMessage, updateMessage, clearChat } = useApp.getState();
@@ -119,7 +124,13 @@ export default function Chat() {
                     </ButtonRow>
                   </>
                 )}
-                {m.status === 'done' && <Pill label={t('done')} icon="check" tone="good" />}
+                {m.status === 'done' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Pill label={t('done')} icon="check" tone="good" />
+                    {m.id === undoId && undoBy === m.id && <Button compact kind="ghost" label="Undo" onPress={() => { useApp.getState().restore(); updateMessage(m.id, { status: 'undone' }); }} />}
+                  </View>
+                )}
+                {m.status === 'undone' && <Pill label="Undone" />}
                 {m.status === 'cancelled' && <Pill label={t('cancelled')} />}
               </View>
             )}

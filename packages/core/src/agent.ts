@@ -4,6 +4,7 @@
 import { addDays, fmtDate, fromMin, minOfDay, toMin } from './dates';
 import { t } from './i18n';
 import { computeReschedule, lateMessage, suggestSlot } from './planner';
+import { scamCheck } from './scam';
 import type { Action, AgentReply, DateStr, Kind, Lang, PlannerState, Reason, TimeStr } from './types';
 
 /** Lowercase, strip tone marks and Hausa hooked letters, so "Ó rẹ̀ mí" matches "o re mi". */
@@ -46,9 +47,9 @@ const P = {
   greet: ['hello', 'hi', 'hey', 'how far', 'good morning', 'good afternoon', 'good evening', 'bawo', 'e kaaro', 'e kaasan', 'kedu', 'ndewo', 'sannu', 'ina kwana', 'bonjour', 'salut', 'bonsoir'],
   add: ['remind me', 'reminder', 'add task', 'add a task', 'add', 'todo', 'to-do', 'to do', 'i need to', 'i have to', 'abeg', 'make i', 'ran mi leti', 'fi kun', 'chetara m', 'tinye', 'tunatar da ni', 'kara', 'rappelle-moi', 'rappelle moi', 'ajoute', 'je dois'],
   schedule: ['schedule', 'book', 'plan time', 'block time', 'set up a meeting', 'meeting', 'appointment', 'call with', 'fix am', 'seto', 'ipade', 'hazo', 'taro', 'planifie', 'reunion', 'rendez-vous', 'rdv'],
-  sleek: ['sleek', 'artisan', 'plumber', 'mechanic', 'electrician', 'carpenter', 'cleaner', 'tailor', 'vulcanizer', 'mecanicien', 'plombier'],
-  domestica: ['domestica', 'sweep', 'mop', 'clean the house', 'clean my room'],
-  afrika: ['afrika i', 'farm', 'patrol', 'drone'],
+  sleek: ['sleek', 'artisan', 'plumber', 'mechanic', 'electrician', 'carpenter', 'cleaner', 'tailor', 'vulcanizer', 'painter', 'ac technician', 'mecanicien', 'plombier'],
+  domestica: ['domestica', 'sweep', 'mop', 'clean the house', 'clean my room', 'clean the living room', 'robot cleaner'],
+  afrika: ['afrika i', 'afrika', 'farm', 'patrol', 'drone'],
 } as const;
 
 const TOMORROW = ['tomorrow', 'tmrw', 'tmr', 'demain', 'lola', 'ni ola', 'echi', 'gobe'];
@@ -131,10 +132,30 @@ export function respond(text: string, state: PlannerState, ctx: AgentContext): A
     }
   }
 
-  // 2. The rest of the Me AI family (coming soon).
-  if (has(n, P.sleek)) return reply('connect', { name: 'Sleek' });
-  if (has(n, P.domestica)) return reply('connect', { name: 'Domestica I' });
-  if (has(n, P.afrika)) return reply('connect', { name: 'Afrika I' });
+  // 2. ID'd: "is this a scam: …" checks the message right here, on the phone.
+  const scam = text.match(/^\s*(?:is\s+this\s+(?:a\s+)?scam|check\s+this(?:\s+message)?|scam\s+check|na\s+scam\s+be\s+this|est-ce\s+une\s+arnaque)\s*[:?\-]?\s*([\s\S]{10,})$/iu);
+  if (scam) {
+    const r = scamCheck(scam[1]);
+    const verdict = r.level === 'high' ? 'This looks like a scam.' : r.level === 'medium' ? 'Be careful with this one.' : 'I see no common scam signs, but never share codes, PINs or your BVN.';
+    return { text: [verdict, ...r.reasons.slice(0, 3)].join(' '), actions: [], source: 'device' };
+  }
+
+  // 2b. The rest of the Me AI family: book a Sleek artisan, command Domestica I or Afrika I.
+  if (has(n, P.sleek)) {
+    const trade = (n.match(/\b(plumber|mechanic|electrician|carpenter|cleaner|tailor|vulcanizer|painter|ac technician|technician|artisan|mecanicien|plombier)\b/) ?? [])[1] ?? 'artisan';
+    const tm = parseTime(n);
+    const date = has(n, TOMORROW) ? addDays(fmtDate(now), 1) : tm !== null ? fmtDate(now) : null;
+    const tradeName = trade === 'mecanicien' ? 'mechanic' : trade === 'plombier' ? 'plumber' : trade;
+    return reply('ecosystemSleek', { trade: tradeName }, [{ type: 'ecosystem', product: 'sleek', command: `book ${tradeName}`, detail: text.trim().slice(0, 300), date, start: tm !== null ? fromMin(tm) : null }]);
+  }
+  if (has(n, P.domestica)) {
+    const command = /\b(status|battery|where)\b/.test(n) ? 'status' : /\b(map|scan)\b/.test(n) ? 'map rooms' : /\bmop\b/.test(n) ? 'mop' : 'sweep';
+    return reply('ecosystemDevice', { name: 'Domestica I', command }, [{ type: 'ecosystem', product: 'domestica', command, detail: text.trim().slice(0, 300), date: null, start: null }]);
+  }
+  if (has(n, P.afrika)) {
+    const command = /\b(status|battery|report|where)\b/.test(n) ? 'status' : 'patrol';
+    return reply('ecosystemDevice', { name: 'Afrika I', command }, [{ type: 'ecosystem', product: 'afrika', command, detail: text.trim().slice(0, 300), date: null, start: null }]);
+  }
 
   // 3. Focus protection.
   if (has(n, P.focus)) {
