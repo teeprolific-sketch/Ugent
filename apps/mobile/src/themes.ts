@@ -1,4 +1,4 @@
-/* Ugent themes. White (the default) and Black are free; Pro and Team unlock Ugent Blue and the rest, plus a custom theme.
+/* Ugent themes. White (the default, white with Ugent blue) and Black are free; Pro and Team unlock Ugent Blue and the rest, plus a custom theme.
  * Every colour in the app comes from one of these token sets, so a theme changes the whole app at once.
  */
 import type { Plan } from '@ugent/core';
@@ -20,13 +20,13 @@ export type ThemeId = 'auto' | 'white' | 'black' | 'blue' | 'midnight' | 'ocean'
 export interface CustomTheme { base: Base; accent: string }
 export interface ThemeDef { id: Exclude<ThemeId, 'auto'>; name: string; note: string; base: Base; pro: boolean; colors: Colors }
 
-/** Plain white: neutral greys, black buttons. The default for everyone. */
+/** White: a clean white page with Ugent's sky-blue buttons and deep-blue headings. The default for everyone. */
 const white: Colors = {
-  bg: '#FFFFFF', surface: '#F4F4F5', surface2: '#EBEBED', line: '#E4E4E7',
-  ink: '#18181B', heading: '#000000', muted: '#5F5F69',
-  sky: '#111111', skyInk: '#111111', onSky: '#FFFFFF',
+  bg: '#FFFFFF', surface: '#F5F7FA', surface2: '#E8F5FD', line: '#E3E8EF',
+  ink: '#111827', heading: '#0B3D91', muted: '#5B6578',
+  sky: '#0EA5E9', skyInk: '#0369A1', onSky: '#FFFFFF',
   good: '#15803D', warn: '#B45309', danger: '#B91C1C',
-  bar: '#18181B', barSoft: '#D4D4D8', toast: '#18181B', scrim: 'rgba(0, 0, 0, 0.35)',
+  bar: '#0B3D91', barSoft: '#BFE4F8', toast: '#0B3D91', scrim: 'rgba(6, 21, 47, 0.35)',
 };
 
 /** Plain black: true black, neutral greys, white buttons. */
@@ -96,9 +96,9 @@ export function buildTheme(base: Base, accent: string, bg?: string): Colors {
 }
 
 export const THEMES: ThemeDef[] = [
-  { id: 'white', name: 'White', note: 'Clean and simple', base: 'light', pro: false, colors: white },
+  { id: 'white', name: 'White', note: 'White with Ugent blue', base: 'light', pro: false, colors: white },
   { id: 'black', name: 'Black', note: 'Easy on the eyes', base: 'dark', pro: false, colors: black },
-  { id: 'blue', name: 'Ugent Blue', note: 'Sky blue, the Ugent look', base: 'light', pro: true, colors: blue },
+  { id: 'blue', name: 'Ugent Blue', note: 'Soft blue all through', base: 'light', pro: true, colors: blue },
   { id: 'midnight', name: 'Midnight', note: 'Deep Ugent blue', base: 'dark', pro: true, colors: midnight },
   { id: 'ocean', name: 'Ocean', note: 'Calm blue-green', base: 'light', pro: true, colors: buildTheme('light', '#0891B2', '#F7FCFD') },
   { id: 'sunset', name: 'Sunset', note: 'Warm and friendly', base: 'light', pro: true, colors: buildTheme('light', '#EA580C', '#FFFBF6') },

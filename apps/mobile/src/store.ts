@@ -420,12 +420,18 @@ export const useApp = create<AppState>()(
     },
     {
       name: 'ugent-v1',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ hydrated: _h, undo: _u, ...rest }) =>
         (rest.settings.rememberChats ? rest : { ...rest, messages: [] }) as unknown as AppState,
       // Older saves lack newer fields: fill them from the defaults instead of dropping them.
-      migrate: (saved) => saved as AppState,
+      migrate: (saved, from) => {
+        const st = saved as AppState;
+        // v3: White (white with Ugent blue) became the default. Earlier installs were put on "Match my phone"
+        // without choosing it, so move them to White once; anyone can turn matching back on in Appearance.
+        if (from < 3 && st?.settings?.theme === 'auto') st.settings = { ...st.settings, theme: 'white' };
+        return st;
+      },
       merge: (saved, current) => {
         const p = (saved ?? {}) as Partial<AppState>;
         return {
