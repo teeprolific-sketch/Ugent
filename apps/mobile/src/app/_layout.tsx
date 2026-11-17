@@ -16,6 +16,7 @@ import { syncNow, syncSoon } from '@/lib/sync';
 import { refreshCloud, refreshImports } from '@/lib/connections';
 import { refreshTeam } from '@/lib/team';
 import { registerBackgroundWork } from '@/lib/background';
+import { saveData, watchConnection } from '@/lib/data';
 import { useApp } from '@/store';
 import { setFontLanguage, useColors, useTheme } from '@/theme';
 
@@ -39,13 +40,27 @@ export default function RootLayout() {
   // Background work: sync when the app opens, comes back online or changes; keep reminders current.
   useEffect(() => {
     if (!ready || !onboarded) return;
-    const refreshAll = () => { void syncNow().then(() => { void refreshCloud().then(refreshImports); if (useApp.getState().me?.teamId) void refreshTeam(); }); };
+    watchConnection();
+    // Syncing is small and always runs. While saving data, skip the extras (Google, Gmail, team refresh) until asked.
+    const refreshAll = () => { void syncNow().then(() => {
+      if (saveData()) { void refreshImports(); return; }
+      void refreshCloud().then(refreshImports);
+      if (useApp.getState().me?.teamId) void refreshTeam();
+    }); };
     refreshAll();
     void registerBackgroundWork();
     const appSub = AppState.addEventListener('change', (st) => { if (st === 'active') refreshAll(); });
-    const netSub = NetInfo.addEventListener((st) => { if (st.isConnected) syncSoon(500); });
+    // Back online after being offline: send what was saved meanwhile. (The listener also fires once at start; skip that.)
+    let wasOnline: boolean | null = null;
+    const netSub = NetInfo.addEventListener((st) => {
+      const online = st.isConnected !== false;
+      if (online && wasOnline === false) syncSoon(500);
+      wasOnline = online;
+    });
     const storeSub = useApp.subscribe((s, prev) => {
-      if (s.tasks !== prev.tasks || s.events !== prev.events) syncSoon();
+      // Sync when something new is waiting to go up (not when a sync itself just brought changes down).
+      const waiting = (x: typeof s) => x.sync.dirtyTasks.length + x.sync.dirtyEvents.length + (x.sync.profileDirty ? 1 : 0);
+      if ((s.sync.dirtyTasks !== prev.sync.dirtyTasks || s.sync.dirtyEvents !== prev.sync.dirtyEvents || s.sync.profileDirty !== prev.sync.profileDirty) && waiting(s) > 0) syncSoon();
       if (s.events !== prev.events || s.focus !== prev.focus || s.settings !== prev.settings) void scheduleReminders();
       if (s.me?.id && s.me.id !== prev.me?.id) void initPurchases(s.me.id).catch(() => {});
     });

@@ -53,10 +53,17 @@ export const POST = handle(async (req: Request) => {
     gt(tbl.rev, input.since),
     or(eq(tbl.ownerId, user.id), myTeam ? eq(tbl.teamId, myTeam) : sql`false`),
   );
-  const [taskRows, eventRows] = await Promise.all([
-    db.select().from(T).where(visible(T)).orderBy(T.rev).limit(2000),
-    db.select().from(E).where(visible(E)).orderBy(E.rev).limit(2000),
+  const limit = input.limit ?? 2000;
+  const [taskPage, eventPage] = await Promise.all([
+    db.select().from(T).where(visible(T)).orderBy(T.rev).limit(limit + 1),
+    db.select().from(E).where(visible(E)).orderBy(E.rev).limit(limit + 1),
   ]);
+  // Tasks and events share one revision counter. When either table has more than a page, stop both at the
+  // lower of the two page ends, so the cursor never skips a row the phone hasn't received yet.
+  const ends = [taskPage, eventPage].filter((p) => p.length > limit).map((p) => p[limit - 1].rev);
+  const cutoff = ends.length ? Math.min(...ends) : Infinity;
+  const taskRows = taskPage.slice(0, limit).filter((r) => r.rev <= cutoff);
+  const eventRows = eventPage.slice(0, limit).filter((r) => r.rev <= cutoff);
   const cursor = Math.max(input.since, ...taskRows.map((r) => r.rev), ...eventRows.map((r) => r.rev));
-  return json({ cursor, tasks: taskRows.map(taskFromRow), events: eventRows.map(eventFromRow), me: toMe(user) });
+  return json({ cursor, tasks: taskRows.map(taskFromRow), events: eventRows.map(eventFromRow), me: toMe(user), more: ends.length > 0 });
 });

@@ -42,7 +42,7 @@ brand/          Logo source and the script that renders every icon and splash im
 20. Privacy and data
 21. Notifications
 22. Language (with search)
-23. Offline mode status
+23. Offline and data: status, Low data mode, automatic data saving, data used this month
 24. Help and support (FAQ, contact, report a problem)
 25. Empty states throughout for new users
 
@@ -59,7 +59,11 @@ Also: **Search** (tasks, plans, notes, people, chats and settings; works offline
 - **Ecosystem commands from chat:** "Find me a plumber tomorrow at 10am" (Sleek), "Domestica, mop the kitchen", "Afrika, patrol the farm tonight". Until each product launches, Ugent saves the request, joins you to the waitlist and, for Sleek, adds a reminder task. Requests are listed in *Me AI ecosystem*.
 - **Insights:** *Your week* has "What Ugent noticed": plain sentences about when you get things done, your busiest day, streaks, focus time and evening reschedules.
 - **Notifications:** *Urgent only* (fixed plans, meetings, places to be), *Smart* (default: your own plans plus a "leave now" alert for plans with a place) or *Everything*. Quiet hours and focus always hold them.
-- **Offline:** a strip at the top of every screen says you're offline, that Ugent still works, and how many changes will sync. Tap it for details.
+- **Offline and low data (free on every plan):** everything except online chat, Google services and team updates works with no connection, and changes queue on the phone. A strip at the top of every screen says you're offline and how many changes will sync.
+  - Sync sends only what changed (the profile only when it changed), downloads in pages (150 rows while saving data) so a slow first sync can't time out, retries on its own after a failure (10 s, 30 s, 2 min, 5 min, 15 min) and goes out as soon as the phone reconnects.
+  - API replies are gzip-compressed: a 40-task sync is about 0.5 KB instead of 12 KB.
+  - *Low data mode* keeps chat on the phone and holds back Google Calendar, Gmail, team refreshes and live traffic. *Save data on slow connections* (on by default) does the same on 2G/3G or when Ugent measures the connection as slow, but keeps online chat.
+  - *Offline and data* shows the mode, pending changes, last sync and data Ugent used this month.
 - **Undo:** toasts offer Undo, and the latest action Ugent took in chat keeps an Undo button.
 - **Live ↔ chat:** *Type instead* in Live hands over to chat with the conversation intact.
 
@@ -145,12 +149,12 @@ npm test
 npm run smoke -w @ugent/api
 ```
 
-The smoke test runs against a live API (20 checks): sign-in, sync and conflicts, privacy between users, chat fallback, the subscription webhook, teams, task board, shared updates, team analytics, roles, connected-service status, signed WhatsApp webhooks with auto-reply during focus, waitlists, support requests, plan limits and account deletion.
+The smoke test runs against a live API (22 checks): sign-in, sync and conflicts, paged low-data sync on the free plan, compressed replies, privacy between users, chat fallback, the subscription webhook, teams, task board, shared updates, team analytics, roles, connected-service status, signed WhatsApp webhooks with auto-reply during focus, waitlists, support requests, plan limits and account deletion.
 
 ## Release to the App Store and Google Play
 
 1. **Expo account and EAS.** Run `npx eas-cli@latest init` in `apps/mobile` (fills `extra.eas.projectId`). Bundle ID and package are `ai.meai.ugent`; change them in `app.json` first if you want a different one, because they cannot change after release.
-2. **Deploy the API.** Any Node host works (Vercel, Render, Fly). Use a managed Postgres (Neon, Supabase, RDS) and run `npm run db:migrate -w @ugent/api` against it. Set `DATABASE_URL`, `AUTH_SECRET`, `ANTHROPIC_API_KEY`, `REVENUECAT_WEBHOOK_AUTH` and `PRIVACY_CONTACT_EMAIL`. Put the API URL in `apps/mobile/eas.json` (`EXPO_PUBLIC_API_URL`, currently a placeholder).
+2. **Deploy the API.** Any Node host works (Vercel, Render, Fly). On a plain server or container, start it with `npm run start -w @ugent/api` (`server.mjs`), which gzips API replies; Next.js 16 doesn't compress route-handler replies itself. On Vercel, or behind Cloudflare or nginx with gzip on, `next start` is fine because they compress at the edge. Use a managed Postgres (Neon, Supabase, RDS) and run `npm run db:migrate -w @ugent/api` against it. Set `DATABASE_URL`, `AUTH_SECRET`, `ANTHROPIC_API_KEY`, `REVENUECAT_WEBHOOK_AUTH` and `PRIVACY_CONTACT_EMAIL`. Put the API URL in `apps/mobile/eas.json` (`EXPO_PUBLIC_API_URL`, currently a placeholder).
 3. **Subscriptions.** In App Store Connect and Google Play Console, create two monthly subscriptions: Pro ($2) and Team ($21). In RevenueCat, add both apps, create entitlements named `pro` and `team`, attach the products, and put them in the current offering with identifiers containing `pro` and `team`. Copy the public SDK keys to `EXPO_PUBLIC_RC_IOS_KEY` and `EXPO_PUBLIC_RC_ANDROID_KEY`. Add a webhook to `https://<api>/api/webhooks/revenuecat` with the same Authorization value as `REVENUECAT_WEBHOOK_AUTH`.
 4. **Store listings.** Privacy policy URL: `https://<api>/privacy`. Account deletion is in Settings and privacy (both stores require it). Data collected: name, plans, tasks, chat messages and usage times, linked to the user and not used for tracking.
 5. **Build and submit.**

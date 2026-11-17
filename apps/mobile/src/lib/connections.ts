@@ -10,6 +10,7 @@ import { Linking, Platform } from 'react-native';
 import type { DeviceConn } from '@/store';
 import { useApp } from '@/store';
 import { apiConfigured, ApiError, ensureSession, request } from './api';
+import { saveData } from './data';
 
 export interface ConnInfo {
   id: DeviceConn | CloudIntegration | 'notion';
@@ -191,6 +192,8 @@ export async function refreshGmail() {
 export async function refreshImports() {
   const s = useApp.getState();
   if (s.connections.deviceCalendar?.on) await importDeviceCalendar().catch(() => 0);
+  // The phone's own calendar costs no data; Google Calendar and Gmail wait while Ugent is saving data.
+  if (saveData()) return;
   if (s.cloud.find((c) => c.provider === 'googleCalendar')?.connected) await importGoogleCalendar().catch(() => 0);
   if (s.cloud.find((c) => c.provider === 'gmail')?.connected) await refreshGmail();
 }

@@ -25,6 +25,8 @@ export interface Settings {
   focusMins: number;
   reminders: boolean;
   lowData: boolean;
+  /** Save data automatically on slow mobile connections (2G and 3G). */
+  autoLowData: boolean;
   /** Use the cloud AI (Claude via the Ugent API) when online. Off: everything runs on the phone. */
   cloudChat: boolean;
   /** Keep chat history on the phone. Off: chats are cleared when Ugent closes. */
@@ -94,7 +96,9 @@ export interface AppState {
   log: Logs;
   messages: ChatMessage[];
   focus: { until: number; mins: number; start: number; label?: string; taskId?: string | null } | null;
-  sync: { cursor: number; lastAt: number | null; dirtyTasks: string[]; dirtyEvents: string[] };
+  sync: { cursor: number; lastAt: number | null; dirtyTasks: string[]; dirtyEvents: string[]; profileDirty: boolean };
+  /** Rough data Ugent's own server calls used this month, in bytes (shown on the Offline screen). */
+  dataUsage: { month: string; bytes: number };
   undo: Snapshot | null;
 
   finishOnboarding: (p: { name: string; lang: Lang; peak: Peak; hustle: Hustle | null; wake: number; sleep: number; sample: boolean; settings: Partial<Settings> }) => void;
@@ -120,6 +124,7 @@ export interface AppState {
   forgetHabits: () => void;
   setProfile: (p: Partial<AppState['profile']>) => void;
   setSettings: (s: Partial<Settings>) => void;
+  addDataUsage: (bytes: number) => void;
   setMe: (me: Me | null) => void;
 
   addTask: (title: string, date?: string) => Task;
@@ -157,7 +162,7 @@ export interface AppState {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false,
+  voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false, autoLowData: true,
   cloudChat: true, rememberChats: true, leadMins: 10, briefTime: '07:00', quietHours: true, travelBuffer: 45,
   lateTemplate: "Hi, I'm running about {mins} minutes late because of {reason}. Sorry, I'm on my way.",
   theme: 'white', customTheme: { base: 'light', accent: '#0EA5E9' },
@@ -189,7 +194,8 @@ const DEFAULTS = {
   log: { completions: [], focus: [], energy: [], reschedules: [] } as Logs,
   messages: [] as ChatMessage[],
   focus: null,
-  sync: { cursor: 0, lastAt: null, dirtyTasks: [] as string[], dirtyEvents: [] as string[] },
+  sync: { cursor: 0, lastAt: null, dirtyTasks: [] as string[], dirtyEvents: [] as string[], profileDirty: true },
+  dataUsage: { month: '', bytes: 0 },
   undo: null,
 };
 
@@ -217,7 +223,11 @@ export const useApp = create<AppState>()(
             log: extra ? { ...s.log, completions: extra.completions, focus: extra.focus, reschedules: extra.reschedules } : s.log,
           }));
         },
-        setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
+        setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p }, sync: { ...s.sync, profileDirty: true } })),
+        addDataUsage: (bytes) => set((s) => {
+          const month = new Date().toISOString().slice(0, 7);
+          return { dataUsage: { month, bytes: (s.dataUsage.month === month ? s.dataUsage.bytes : 0) + bytes } };
+        }),
         setSettings: (p) => set((s) => ({ settings: { ...s.settings, ...p } })),
         setMe: (me) => set((s) => ({ me, workspace: me?.teamId || me?.plan === 'team' ? s.workspace : 'personal' })),
         setWorkspace: (workspace) => set({ workspace }),
@@ -401,7 +411,7 @@ export const useApp = create<AppState>()(
           return {
             tasks: mergeList(s.tasks, tasks),
             events: mergeList(s.events, events),
-            sync: { cursor, lastAt: Date.now(), dirtyTasks: stillDirty(s.sync.dirtyTasks, s.tasks), dirtyEvents: stillDirty(s.sync.dirtyEvents, s.events) },
+            sync: { ...s.sync, cursor, lastAt: Date.now(), dirtyTasks: stillDirty(s.sync.dirtyTasks, s.tasks), dirtyEvents: stillDirty(s.sync.dirtyEvents, s.events) },
           };
         }),
 

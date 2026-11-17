@@ -56,6 +56,8 @@ export const SyncRequest = z.object({
   since: z.number().int().min(0),
   tasks: z.array(TaskSchema).max(1000),
   events: z.array(EventSchema).max(1000),
+  /** Most rows to send back per table. Phones on slow or costly connections ask for small pages. */
+  limit: z.number().int().min(20).max(2000).optional(),
   profile: z.object({
     name: z.string().max(80), lang: z.enum(LANGS), peak: z.enum(PEAKS),
     hustle: z.enum(HUSTLES).nullable().optional(),
@@ -70,6 +72,8 @@ export const SyncResponse = z.object({
   tasks: z.array(TaskSchema),
   events: z.array(EventSchema),
   me: Me,
+  /** True when more changes are waiting: sync again from `cursor`. */
+  more: z.boolean().optional(),
 });
 export type SyncResponse = z.infer<typeof SyncResponse>;
 

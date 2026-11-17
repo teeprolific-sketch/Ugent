@@ -10,7 +10,8 @@ import { syncNow } from '@/lib/sync';
 import { effectivePlan, useApp } from '@/store';
 import { useColors } from '@/theme';
 
-const PRO = ['Personal daily brief, calendar and tasks', 'Full chat and voice in 6 languages', 'Smart scheduling and automatic rescheduling', 'Personal analytics', 'Connected apps: WhatsApp, Maps, Calendar, Gmail and more', 'Me AI ecosystem: Sleek, Domestica I, Afrika I, ID\'d', 'Works offline and on low data', 'Extra themes and your own custom theme'];
+const FREE = ['Works fully offline: tasks, plans, reminders, focus and your brief', 'Low data mode, plus automatic data saving on 2G and 3G', 'On-phone assistant in 6 languages, by text or voice', 'Backup and sync of your tasks and plans', '10 smarter online chats a day', 'White and Black themes'];
+const PRO = ['Everything in Free', '300 smarter online chats a day', 'Smart scheduling and automatic rescheduling', 'Personal analytics', 'Connected apps: Google Calendar, Gmail, WhatsApp Business and more', 'Me AI ecosystem: Sleek, Domestica I, Afrika I, ID\'d', 'Ugent Blue, more themes and your own custom theme'];
 const TEAM = ['Everything in Pro', 'Team home with shared updates', 'Shared team calendar', 'Team tasks board', 'Admin panel: members and roles', 'Advanced team analytics', 'Syncing across everyone on the team', 'Personal and Team workspaces'];
 
 export default function Pricing() {
@@ -67,11 +68,24 @@ export default function Pricing() {
   return (
     <Screen>
       <Header back title="Plans" sub="Simple prices. Cancel any time." />
+      <View style={{ borderWidth: 1.5, borderColor: c.line, borderRadius: 18, padding: 22, gap: 14 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <T v="h2">Free</T>
+          <Pill label={plan === 'free' ? 'Your plan' : 'Always included'} tone={plan === 'free' ? 'good' : 'plain'} />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+          <T v="hero">$0</T>
+          <T muted>forever</T>
+        </View>
+        <View style={{ gap: 10 }}>
+          {FREE.map((x) => <View key={x} style={{ flexDirection: 'row', gap: 10 }}><Icon name="check" color={c.sky} size={20} /><T style={{ flex: 1 }}>{x}</T></View>)}
+        </View>
+      </View>
       {card('pro', 'Pro', 'For you', '$2', PRO, true)}
       {card('team', 'Team', 'Teams and companies', '$21', TEAM, false)}
       <View style={{ gap: 10 }}>
         <T v="small" muted>
-          Without a plan, Ugent still works on your phone, offline, with up to 10 cloud chat messages a day.
+          The Free plan never expires: offline use, low data mode and backup are included on every plan, with up to 10 smarter online chats a day.
           Subscriptions renew every month until you cancel. Payment is charged to your {store} account. Manage or cancel in your {store} subscriptions.
         </T>
         <View style={{ flexDirection: 'row', gap: 20, flexWrap: 'wrap' }}>

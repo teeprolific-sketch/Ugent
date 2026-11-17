@@ -13,6 +13,7 @@ export async function askUgent(text: string, history: ChatMessage[]): Promise<Ag
   const d0 = fmtDate(new Date());
   const device = () => respond(text, state, { lang: s.profile.lang, now: new Date(), fmtTime: fmtTime(s.profile.lang) });
 
+  // Low data mode keeps chat on the phone. A slow 2G/3G line alone doesn't: a chat message is only a few KB.
   if (!apiConfigured() || s.settings.lowData || !s.settings.cloudChat) return device();
   const net = await NetInfo.fetch();
   if (net.isConnected === false) return device();

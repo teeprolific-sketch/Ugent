@@ -68,6 +68,39 @@ r = await call('POST', '/api/sync', { token: A, body: { since: 0, tasks: [], eve
 assert.equal(r.status, 400);
 step('sync: invalid data is rejected with a readable 400');
 
+// Low data: a free account syncs in small pages that never skip a change, and replies are compressed.
+{
+  const dev = randomUUID();
+  const reg = await call('POST', '/api/auth/device', { body: { deviceId: dev, platform: 'android', name: 'Chidi' } });
+  const C = reg.data.token;
+  assert.equal(reg.data.me.plan, 'free');
+  const tasks = Array.from({ length: 45 }, (_, i) => ({ id: `lt-${dev.slice(0, 6)}-${i}`, title: `Task ${i}`, important: false, done: false, date: d0, createdAt: now, updatedAt: now }));
+  const events = Array.from({ length: 30 }, (_, i) => ev(`le-${dev.slice(0, 6)}-${i}`, `Plan ${i}`, '09:00'));
+  r = await call('POST', '/api/sync', { token: C, body: { since: 0, tasks, events } });
+  assert.equal(r.status, 200);
+  // Fresh phone, same account, pulling 20 rows per table at a time.
+  let since = 0, pages = 0, more = true; const gotT = new Set(), gotE = new Set();
+  while (more && pages < 20) {
+    r = await call('POST', '/api/sync', { token: C, body: { since, tasks: [], events: [], limit: 20 } });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.tasks.length <= 20 && r.data.events.length <= 20);
+    r.data.tasks.forEach((t) => gotT.add(t.id)); r.data.events.forEach((e) => gotE.add(e.id));
+    assert.ok(r.data.cursor > since || !r.data.more);
+    since = r.data.cursor; more = r.data.more; pages++;
+  }
+  assert.equal(gotT.size, 45); assert.equal(gotE.size, 30); assert.ok(pages >= 3);
+  r = await call('POST', '/api/sync', { token: C, body: { since, tasks: [], events: [], limit: 20 } });
+  assert.equal(r.data.tasks.length + r.data.events.length, 0); assert.equal(r.data.more, false);
+  step(`low data: free plan syncs ${gotT.size + gotE.size} changes in ${pages} small pages without missing any`);
+  r = await call('POST', '/api/sync', { token: C, body: { since: 0, tasks: [], events: [] } });
+  assert.equal(r.data.me.name, 'Chidi');
+  const raw = await fetch(BASE + '/api/sync', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${C}`, 'accept-encoding': 'gzip' }, body: JSON.stringify({ since: 0, tasks: [], events: [] }) });
+  const enc = raw.headers.get('content-encoding');
+  const plain = JSON.stringify(await raw.json()).length;
+  assert.equal(enc, 'gzip');
+  step(`low data: sync without a profile keeps it; replies are gzip-compressed (${Math.round(plain / 1024)} KB before compression)`);
+}
+
 // Chat (falls back to the on-device agent when cloud chat is not configured or declines)
 r = await call('POST', '/api/chat', { token: A, body: { message: "I'm stuck in traffic", history: [], lang: 'en', localNow, state: chatState([{ ...e1, start: '11:00' }]) } });
 assert.equal(r.status, 200);

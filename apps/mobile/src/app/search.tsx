@@ -23,7 +23,7 @@ const SCREENS: [string, string, IconName, Href][] = [
   ['Connected apps', 'whatsapp google calendar gmail maps contacts sms notion', 'link', '/connections'],
   ['Plans and pricing', 'pro team upgrade subscription cancel', 'tag', '/pricing'],
   ['Your week', 'analytics insights stats', 'chart', '/analytics'],
-  ['Offline mode', 'sync data network', 'wifiOff', '/offline'],
+  ['Offline and data', 'offline low data mode sync network mobile data usage', 'wifiOff', '/offline'],
   ['Me AI ecosystem', 'sleek domestica afrika idd', 'more', '/ecosystem'],
   ['Help and support', 'contact faq problem', 'info', '/help'],
 ];

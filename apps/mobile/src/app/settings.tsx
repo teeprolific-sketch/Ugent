@@ -30,7 +30,7 @@ export default function Settings() {
         <Row icon="heart" title="Memory and preferences" sub="What Ugent has learned. Edit or delete it" chevron onPress={() => router.push('/memory')} />
         <Row icon="lock" title="Privacy and data" sub="What Ugent may do, clear or delete data" chevron onPress={() => router.push('/privacy')} />
         <Row icon="link" title="Connected apps" chevron onPress={() => router.push('/connections')} />
-        <Row icon="wifiOff" title="Offline mode" sub={online ? (pending ? `${pending} change${pending > 1 ? 's' : ''} waiting to sync` : 'Online, all synced') : 'Offline, still working'} chevron onPress={() => router.push('/offline')} />
+        <Row icon="wifiOff" title="Offline and data" sub={state.settings.lowData ? 'Low data mode on' : online ? (pending ? `${pending} change${pending > 1 ? 's' : ''} waiting to sync` : 'Online, all synced') : 'Offline, still working'} chevron onPress={() => router.push('/offline')} />
       </Group>
       <Group>
         <Row icon="mic" title="Speak replies out loud" right={<Toggle value={state.settings.voiceReplies} onChange={(v) => state.setSettings({ voiceReplies: v })} label="Speak replies out loud" />} />

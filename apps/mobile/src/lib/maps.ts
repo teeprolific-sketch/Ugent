@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import type { PlanEvent } from '@ugent/core';
 import { useApp } from '@/store';
 import { apiConfigured, request } from './api';
+import { saveData } from './data';
 
 export async function currentPosition(): Promise<{ lat: number; lng: number } | null> {
   if (Platform.OS === 'web' || !useApp.getState().connections.googleMaps?.on) return null;
@@ -19,7 +20,8 @@ export async function currentPosition(): Promise<{ lat: number; lng: number } | 
 export async function travelMinutes(destination: string): Promise<{ minutes: number; live: boolean }> {
   const s = useApp.getState();
   const fallback = { minutes: s.settings.travelBuffer, live: false };
-  if (!apiConfigured() || !s.cloud.find((c) => c.provider === 'googleMaps')?.available) return fallback;
+  // Live traffic is a network call; while saving data, use the person's usual travel buffer instead.
+  if (!apiConfigured() || saveData() || !s.cloud.find((c) => c.provider === 'googleMaps')?.available) return fallback;
   const origin = (await currentPosition()) ?? (s.places.home || null);
   if (!origin) return fallback;
   try {

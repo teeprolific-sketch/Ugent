@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { useApp } from '@/store';
 import { refreshCloud, refreshImports } from './connections';
 import { scheduleReminders } from './notifications';
+import { saveData, watchConnection } from './data';
 import { syncNow } from './sync';
 
 export const BACKGROUND_TASK = 'ugent-background-refresh';
@@ -20,9 +21,10 @@ if (Platform.OS !== 'web') {
   TaskManager.defineTask(BACKGROUND_TASK, async () => {
     try {
       await hydrated();
+      watchConnection();
       if (!useApp.getState().onboarded) return BackgroundTask.BackgroundTaskResult.Success;
       await syncNow();
-      await refreshCloud();
+      if (!saveData()) await refreshCloud();
       await refreshImports();
       await scheduleReminders();
       return BackgroundTask.BackgroundTaskResult.Success;

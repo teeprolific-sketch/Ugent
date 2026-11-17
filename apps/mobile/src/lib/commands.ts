@@ -64,7 +64,7 @@ export function parseCommand(text: string): Command | null {
 
   // Background work.
   if (/^(sync|sync now|back ?up|backup now|save (it )?(online|to the cloud))$/.test(n)) {
-    return { say: 'Syncing your plans and tasks now.', run: () => syncNow() };
+    return { say: 'Syncing your plans and tasks now.', run: () => { void syncNow(); } };
   }
 
   // Memory.
