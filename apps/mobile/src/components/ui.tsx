@@ -238,8 +238,8 @@ export function Segmented<V extends string | number>({ value, options, onChange 
 export function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   const c = useColors();
   // react-native-web reads its own colour props; phones use trackColor/thumbColor.
-  const web = Platform.OS === 'web' ? ({ activeThumbColor: '#FFFFFF', activeTrackColor: c.sky } as object) : {};
-  return <Switch value={value} onValueChange={(v) => { tap(); onChange(v); }} accessibilityLabel={label} trackColor={{ true: c.sky, false: c.line }} thumbColor="#FFFFFF" ios_backgroundColor={c.line} {...web} />;
+  const web = Platform.OS === 'web' ? ({ activeThumbColor: c.onSky, activeTrackColor: c.sky } as object) : {};
+  return <Switch value={value} onValueChange={(v) => { tap(); onChange(v); }} accessibilityLabel={label} trackColor={{ true: c.sky, false: c.line }} thumbColor={value ? c.onSky : '#FFFFFF'} ios_backgroundColor={c.line} {...web} />;
 }
 
 export function Check({ on, onPress, label }: { on: boolean; onPress: () => void; label: string }) {

@@ -70,7 +70,7 @@ Also: **Search** (tasks, plans, notes, people, chats and settings; works offline
 - **Voice commands** (Live or Chat), handled on the phone: "open my tasks", "show my week", "switch to black theme", "turn on low data", "turn off reminders", "sync now", "remember that…", "what do you remember about me".
 - **Background work:** about every 30 minutes, even when Ugent is closed, it syncs, refreshes imported calendars and Gmail, and re-plans reminders and the morning brief (`expo-background-task`; the phone decides the exact timing).
 - **Personalisation:** Ugent learns from what you do: the people you call or message (and their numbers once found), places you go, weekly routines from your plans, your best time of day, and facts you ask it to remember. It uses these in the brief (routine suggestions), in on-device answers, and in the cloud AI's context. Everything is listed in *Privacy and memory* and can be deleted item by item.
-- **Themes** (Settings, Appearance): White and Black for everyone, or match the phone. Pro and Team add Midnight, Ocean, Sunset, Forest, Royal and a custom theme.
+- **Themes** (Settings, Appearance): White (the default, plain black-and-white) and Black for everyone, or match the phone. Pro and Team add Ugent Blue (the sky-blue brand look), Midnight, Ocean, Sunset, Forest, Royal and a custom theme.
 
 ## Connected apps
 

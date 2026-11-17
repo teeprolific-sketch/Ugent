@@ -160,7 +160,7 @@ const DEFAULT_SETTINGS: Settings = {
   voiceReplies: false, learn: true, askBeforeAction: true, focusMins: 50, reminders: true, lowData: false,
   cloudChat: true, rememberChats: true, leadMins: 10, briefTime: '07:00', quietHours: true, travelBuffer: 45,
   lateTemplate: "Hi, I'm running about {mins} minutes late because of {reason}. Sorry, I'm on my way.",
-  theme: 'auto', customTheme: { base: 'light', accent: '#0EA5E9' },
+  theme: 'white', customTheme: { base: 'light', accent: '#0EA5E9' },
   notifMode: 'smart', replyStyle: 'short',
 };
 

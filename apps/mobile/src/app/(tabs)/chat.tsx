@@ -160,7 +160,7 @@ export default function Chat() {
           style={[{ flex: 1, minWidth: 0, minHeight: 50, borderRadius: 25, paddingHorizontal: 18, backgroundColor: c.surface, color: c.ink, fontFamily: font.regular, fontSize: size.base }, webNoOutline]} />
         <Pressable onPress={() => void send(text)} accessibilityRole="button" accessibilityLabel="Send"
           style={{ width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: c.sky, opacity: text.trim() ? 1 : 0.6 }}>
-          <Icon name="send" color="#FFFFFF" />
+          <Icon name="send" color={c.onSky} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>

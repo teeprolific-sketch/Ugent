@@ -36,7 +36,7 @@ export function Avatar({ name, color, size: s = 36 }: { name: string; color?: st
   const letters = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || 'U';
   return (
     <View accessibilityLabel={name} style={{ width: s, height: s, borderRadius: s / 2, backgroundColor: color ?? c.sky, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#FFFFFF', fontFamily: font.bold, fontSize: s * 0.4 }}>{letters}</Text>
+      <Text style={{ color: color ? '#FFFFFF' : c.onSky, fontFamily: font.bold, fontSize: s * 0.4 }}>{letters}</Text>
     </View>
   );
 }
@@ -48,7 +48,7 @@ export function PlanBadge({ plan }: { plan: Plan }) {
   const bg = plan === 'team' ? '#0B3D91' : c.sky;
   return (
     <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, backgroundColor: bg }}>
-      <Text style={{ fontFamily: font.bold, fontSize: 12, color: '#FFFFFF', letterSpacing: 0.3 }}>{plan === 'team' ? 'TEAM' : 'PRO'}</Text>
+      <Text style={{ fontFamily: font.bold, fontSize: 12, color: plan === 'team' ? '#FFFFFF' : c.onSky, letterSpacing: 0.3 }}>{plan === 'team' ? 'TEAM' : 'PRO'}</Text>
     </View>
   );
 }
