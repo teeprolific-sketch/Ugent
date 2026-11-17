@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ugent brand film</title>
+<style>
+  @font-face { font-family: Outfit; font-weight: 400; src: url(fonts/Outfit_400Regular.ttf); }
+  @font-face { font-family: Outfit; font-weight: 500; src: url(fonts/Outfit_500Medium.ttf); }
+  @font-face { font-family: Outfit; font-weight: 600; src: url(fonts/Outfit_600SemiBold.ttf); }
+  @font-face { font-family: Outfit; font-weight: 700; src: url(fonts/Outfit_700Bold.ttf); }
+  html, body { margin: 0; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Outfit, sans-serif; perspective: 2000px; perspective-origin: 50% 42%; }
+  .bg { position: absolute; inset: 0; }
+  #bg-light { background: radial-gradient(1200px 800px at 74% 38%, #E3F3FD 0%, #F7FBFF 45%, #FFFFFF 75%); }
+  #bg-dark { background: radial-gradient(1300px 900px at 68% 34%, #11336B 0%, #0A2149 38%, #06152F 75%); }
+  #bg-sky { background: radial-gradient(1000px 700px at 80% 20%, #BAE6FD 0%, rgba(186,230,253,0) 70%), linear-gradient(135deg, #E0F2FE 0%, #F0F9FF 45%, #FFFFFF 100%); }
+  .floor { position: absolute; left: -1040px; top: 640px; width: 4000px; height: 2400px; transform-origin: 50% 0; transform: rotateX(78deg);
+    background-image: linear-gradient(var(--grid) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--grid) 1.5px, transparent 1.5px); background-size: 120px 120px;
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0) 70%); mask-image: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0) 70%); }
+  #floor-light { --grid: rgba(11, 61, 145, 0.10); }
+  #floor-dark { --grid: rgba(56, 189, 248, 0.16); }
+  .orb { position: absolute; border-radius: 50%; filter: blur(70px); }
+  #world { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .seg { position: absolute; inset: 0; transform-style: preserve-3d; display: none; }
+
+  /* Phone: a real slab with depth, a bezel, a glass glare and a soft floor shadow. */
+  .pw { position: absolute; left: 960px; top: 540px; width: 0; height: 0; transform-style: preserve-3d; }
+  .phone { position: absolute; left: -180px; top: -376px; width: 360px; height: 752px; transform-style: preserve-3d; }
+  .edge { position: absolute; inset: 0; border-radius: 58px; background: #0C1730; }
+  .edge.hi { background: #1C2C4D; }
+  .front { position: absolute; inset: 0; border-radius: 58px; background: linear-gradient(145deg, #23365C, #0B1428 60%); padding: 12px; box-sizing: border-box; transform: translateZ(0.5px);
+    box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.18); }
+  .screen { position: relative; width: 336px; height: 728px; border-radius: 47px; overflow: hidden; background: #fff; }
+  .screen img { width: 100%; height: 100%; display: block; }
+  .island { position: absolute; left: 50%; top: 10px; width: 92px; height: 26px; margin-left: -46px; border-radius: 14px; background: #05080F; }
+  .glare { position: absolute; inset: 0; border-radius: 58px; pointer-events: none; transform: translateZ(1px);
+    background: linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.22) 45%, rgba(255,255,255,0) 58%); background-size: 300% 100%; }
+  .back { position: absolute; inset: 0; border-radius: 58px; transform: translateZ(-16px) rotateY(180deg); background: linear-gradient(160deg, #0EA5E9, #0B3D91); }
+  .shadow { position: absolute; left: -200px; top: 330px; width: 400px; height: 90px; border-radius: 50%; background: radial-gradient(closest-side, rgba(6, 21, 47, 0.38), rgba(6, 21, 47, 0)); transform: rotateX(80deg); }
+
+  .text { position: absolute; top: 0; width: 760px; }
+  .kicker { font-size: 26px; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; }
+  .title { font-size: 84px; font-weight: 700; line-height: 1.02; letter-spacing: -1.5px; margin-top: 18px; }
+  .sub { font-size: 34px; font-weight: 400; line-height: 1.35; margin-top: 26px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+  .chip { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 500; padding: 14px 24px 14px 18px; border-radius: 999px; }
+  .chip svg { flex: none; }
+  .t-light .kicker, .t-sky .kicker { color: #0EA5E9; } .t-dark .kicker { color: #38BDF8; }
+  .t-light .title, .t-sky .title { color: #0B3D91; } .t-dark .title { color: #FFFFFF; }
+  .t-light .sub, .t-sky .sub { color: #3B4A63; } .t-dark .sub { color: #BFD3EE; }
+  .t-light .chip { background: #E8F5FD; color: #0B3D91; } .t-sky .chip { background: #FFFFFF; color: #0B3D91; box-shadow: 0 6px 20px rgba(11,61,145,0.08); }
+  .t-dark .chip { background: rgba(56, 189, 248, 0.13); color: #E6F4FF; box-shadow: inset 0 0 0 1.5px rgba(56,189,248,0.35); }
+
+  /* Chapter cards: extruded 3D type. */
+  .chapter { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-style: preserve-3d; }
+  .big { position: absolute; left: 0; width: 1920px; text-align: center; top: 300px; font-size: 300px; font-weight: 700; letter-spacing: -6px; line-height: 1; transform-style: preserve-3d; }
+  .big span { position: absolute; left: 0; width: 100%; }
+  .price { position: absolute; left: 0; width: 1920px; text-align: center; top: 660px; font-size: 64px; font-weight: 600; }
+  .tagline { position: absolute; left: 0; width: 1920px; text-align: center; top: 760px; font-size: 36px; font-weight: 400; }
+
+  .hud { position: absolute; z-index: 5; }
+  #hud-logo { left: 64px; top: 50px; width: 150px; }
+  #hud-plan { right: 64px; top: 52px; font-size: 24px; font-weight: 700; letter-spacing: 3px; padding: 12px 22px; border-radius: 999px; }
+  #hud-bar { left: 64px; right: 64px; bottom: 46px; height: 5px; border-radius: 4px; overflow: hidden; }
+  #hud-bar i { display: block; height: 100%; width: 0; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg" id="bg-light"></div><div class="bg" id="bg-dark"></div><div class="bg" id="bg-sky"></div>
+  <div class="orb" id="orb1" style="width:520px;height:520px;background:rgba(14,165,233,0.30)"></div>
+  <div class="orb" id="orb2" style="width:420px;height:420px;background:rgba(11,61,145,0.20)"></div>
+  <div class="floor" id="floor-light"></div><div class="floor" id="floor-dark"></div>
+  <div id="world"></div>
+  <img class="hud" id="hud-logo" src="ugent-wordmark.svg" alt="">
+  <div class="hud" id="hud-plan"></div>
+  <div class="hud" id="hud-bar"><i></i></div>
+</div>
+<script>
+/* ---------- The film, as data ---------- */
+const BEAT = 4.3, CHAPTER = 3.4;
+const SEGMENTS = [
+  { type: 'intro', dur: 6, theme: 'dark' },
+  { type: 'hero', dur: 7.5, theme: 'light' },
+
+  { type: 'chapter', dur: CHAPTER, theme: 'light', plan: 'free', name: 'Free', price: '$0, forever', tagline: 'Everything you need to run your day.' },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'right', kicker: 'Free', title: 'Speaks your language', screens: ['f02-languages', 'f01-welcome'],
+    chips: ['English', 'Pidgin', 'Yorùbá', 'Igbo', 'Hausa', 'Français'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'left', kicker: 'Free', title: 'Your daily brief', screens: ['f03-home'],
+    chips: ['Plans and tasks for today', 'Your strongest hours', 'Traffic and leave-by times', 'Evening wrap-up'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'right', kicker: 'Free', title: 'Talk or type. It acts.', screens: ['f04-chat', 'f05-capture'],
+    chips: ['On-phone assistant', 'Text or voice', 'Quick capture', '10 smarter online chats a day'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'left', kicker: 'Free', title: 'Plan, do, focus', screens: ['f06-plan', 'f07-tasks', 'f15-focus'],
+    chips: ['Day and week plan', 'Clash fixes in one tap', 'Tasks and notes', 'Focus mode'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'right', kicker: 'Free', title: 'Works offline. Saves data.', screens: ['f14-offline-tasks', 'f10-offline'],
+    chips: ['Fully offline', 'Low data mode', 'Auto data saving on 2G and 3G', 'Backup and sync'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'left', kicker: 'Free', title: 'Remembers what matters', screens: ['f08-search', 'f09-memory'],
+    chips: ['Memory you control', 'Search everything', 'Private by default'] },
+  { type: 'beat', plan: 'free', theme: 'light', side: 'right', kicker: 'Free', title: 'White or Black', screens: ['f03-home', 'f13-home-black'],
+    chips: ['White with Ugent blue', 'Black for the night', 'Or match your phone'] },
+
+  { type: 'chapter', dur: CHAPTER, theme: 'dark', plan: 'pro', name: 'Pro', price: '$2 a month', tagline: 'More power for your personal day.' },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'right', kicker: 'Pro', title: 'Live, hands-free voice', screens: ['p10-live'], live: true,
+    chips: ['Talk out loud', 'Ugent answers back', 'Confirm by voice'] },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'left', kicker: 'Pro', title: 'Smart rescheduling', screens: ['p07-reschedule', 'f06b-week'],
+    chips: ['Stuck in traffic', 'Power cut', 'Feeling tired', 'Moves plans for you'] },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'right', kicker: 'Pro', title: 'Insights about your time', screens: ['p04-insights'],
+    chips: ['Your best hours', 'Streaks and focus time', '300 smarter online chats a day'] },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'left', kicker: 'Pro', title: 'Connected apps', screens: ['p05-connections', 'p06-whatsapp'],
+    chips: ['Google Calendar', 'Gmail', 'Google Tasks', 'WhatsApp Business'] },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'right', kicker: 'Pro', title: 'The Me AI family', screens: ['p08-sleek-chat', 'p09-ecosystem'],
+    chips: ['Sleek', 'Domestica I', 'Afrika I', "ID'd"] },
+  { type: 'beat', plan: 'pro', theme: 'dark', side: 'left', kicker: 'Pro', title: 'Make it yours', screens: ['p01-appearance', 'p03-home-midnight', 'p02-home-blue'],
+    chips: ['Ugent Blue', 'Midnight', 'Ocean, Sunset and more', 'Your own colours'] },
+
+  { type: 'chapter', dur: CHAPTER, theme: 'sky', plan: 'team', name: 'Team', price: '$21 a month', tagline: 'Run your business day together.' },
+  { type: 'beat', plan: 'team', theme: 'sky', side: 'right', kicker: 'Team', title: 'Personal and Team, one tap apart', screens: ['t01-team-home', 'f03-home'],
+    chips: ['Everything in Pro', 'Team home', 'Shared updates'] },
+  { type: 'beat', plan: 'team', theme: 'sky', side: 'left', kicker: 'Team', title: 'One shared calendar', screens: ['t02-team-calendar'],
+    chips: ['Everyone’s plans', 'Coloured by person', 'Synced for all'] },
+  { type: 'beat', plan: 'team', theme: 'sky', side: 'right', kicker: 'Team', title: 'A task board for the team', screens: ['t03-team-board'],
+    chips: ['To do, Doing, Done', 'Assign to anyone', 'Moves with the work'] },
+  { type: 'beat', plan: 'team', theme: 'sky', side: 'left', kicker: 'Team', title: 'See how the week went', screens: ['t04-team-dashboard', 't06-team-analytics'],
+    chips: ['Team dashboard', 'Advanced analytics', 'Personal tasks stay private'] },
+  { type: 'beat', plan: 'team', theme: 'sky', side: 'right', kicker: 'Team', title: 'You stay in charge', screens: ['t05-team-admin'],
+    chips: ['Invite code', 'Members and roles', 'Admin controls'] },
+
+  { type: 'outro', dur: 9, theme: 'dark' },
+];
+for (const s of SEGMENTS) if (!s.dur) s.dur = BEAT;
+let acc = 0; for (const s of SEGMENTS) { s.start = acc; acc += s.dur; }
+const TOTAL = acc;
+const PLAN_LABEL = { free: 'FREE  ·  $0', pro: 'PRO  ·  $2 / MONTH', team: 'TEAM  ·  $21 / MONTH' };
+
+/* ---------- Helpers ---------- */
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const easeInOut = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const easeIn = (x) => Math.pow(clamp(x), 3);
+const lerp = (a, b, k) => a + (b - a) * k;
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const CHECK = (c) => `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`;
+
+function makePhone(src) {
+  const pw = el('div', 'pw');
+  const shadow = el('div', 'shadow'); pw.appendChild(shadow);
+  const ph = el('div', 'phone');
+  for (let i = 15; i >= 1; i--) { const e = el('div', 'edge' + (i % 5 === 0 ? ' hi' : '')); e.style.transform = `translateZ(${-i}px)`; ph.appendChild(e); }
+  ph.appendChild(el('div', 'back'));
+  const front = el('div', 'front');
+  const scr = el('div', 'screen');
+  const img = el('img'); img.src = `shots/${src}.png`; scr.appendChild(img);
+  front.appendChild(scr); ph.appendChild(front);
+  const glare = el('div', 'glare'); ph.appendChild(glare);
+  pw.appendChild(ph);
+  return { pw, ph, glare, shadow, img };
+}
+/** Place a phone: position in px from the stage centre, depth, angles in degrees. */
+function placePhone(p, s) {
+  p.pw.style.transform = `translate3d(${s.x}px, ${s.y}px, ${s.z}px)`;
+  p.ph.style.transform = `rotateY(${s.ry}deg) rotateX(${s.rx || 0}deg) rotateZ(${s.rz || 0}deg) scale(${s.scale || 1})`;
+  p.pw.style.opacity = s.o;
+  p.glare.style.backgroundPosition = `${50 + s.ry * 2.2}% 0`;
+  p.shadow.style.opacity = clamp(s.o * (1 - Math.abs(s.y + 30) / 400));
+  p.shadow.style.transform = `translate3d(0, ${360 * (s.scale || 1) - s.y}px, 0) rotateX(82deg) scale(${(s.scale || 1) * 1.1})`;
+}
+
+/* ---------- Build every segment once ---------- */
+const world = document.getElementById('world');
+for (const s of SEGMENTS) {
+  const root = el('div', 'seg t-' + s.theme); world.appendChild(root); s.root = root;
+  if (s.type === 'beat' || s.type === 'hero') {
+    const isHero = s.type === 'hero';
+    const side = isHero ? 'right' : s.side;
+    const txt = el('div', 'text');
+    const chips = isHero ? ['6 African and world languages', 'Works offline', 'Takes real actions'] : s.chips;
+    const chipColor = s.theme === 'dark' ? '#38BDF8' : '#0EA5E9';
+    txt.innerHTML = `<div class="kicker">${isHero ? 'Meet Ugent' : s.kicker}</div><div class="title">${isHero ? 'The personal AI for everyday African life' : s.title}</div>` +
+      (isHero ? '<div class="sub">Plans your day around traffic, power cuts, family and work. Speaks your language. Takes real action.</div>' : '') +
+      `<div class="chips">${chips.map((c) => `<div class="chip">${CHECK(chipColor)}<span>${c}</span></div>`).join('')}</div>`;
+    txt.style.left = side === 'right' ? '150px' : '1010px';
+    root.appendChild(txt);
+    s.txt = txt; s.parts = [...txt.children]; s.chipEls = [...txt.querySelectorAll('.chip')];
+    const screens = isHero ? ['f03-home'] : s.screens;
+    s.phones = screens.map((src) => { const p = makePhone(src); root.appendChild(p.pw); return p; });
+    s.side = side;
+  } else if (s.type === 'chapter') {
+    const ch = el('div', 'chapter');
+    const big = el('div', 'big');
+    const front = s.theme === 'dark' ? '#FFFFFF' : '#0B3D91';
+    const sideC = s.theme === 'dark' ? ['#38BDF8', '#0369A1'] : ['#0EA5E9', '#0B3D91'];
+    const N = 18;
+    for (let i = N; i >= 0; i--) {
+      const sp = el('span', null, s.name);
+      sp.style.transform = `translateZ(${-i * 2.6}px)`;
+      sp.style.color = i === 0 ? front : (i < N / 2 ? sideC[0] : sideC[1]);
+      if (i === 0) sp.style.textShadow = s.theme === 'dark' ? '0 0 40px rgba(56,189,248,0.45)' : '0 0 1px rgba(255,255,255,0.4)';
+      big.appendChild(sp);
+    }
+    ch.appendChild(big);
+    const price = el('div', 'price', s.price); price.style.color = s.theme === 'dark' ? '#38BDF8' : '#0EA5E9'; ch.appendChild(price);
+    const tag = el('div', 'tagline', s.tagline); tag.style.color = s.theme === 'dark' ? '#BFD3EE' : '#3B4A63'; ch.appendChild(tag);
+    root.appendChild(ch); s.ch = ch; s.big = big; s.price = price; s.tag = tag;
+  } else if (s.type === 'intro') {
+    const logo = el('img'); logo.src = 'ugent-wordmark-dark.svg'; logo.style.cssText = 'position:absolute;left:660px;top:330px;width:600px;';
+    const by = el('div', null, 'by Me AI'); by.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:600px;font-size:34px;font-weight:500;letter-spacing:2px;color:#9DB0CC;';
+    const tl = el('div', null, 'Your day, handled.'); tl.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:690px;font-size:64px;font-weight:700;color:#FFFFFF;letter-spacing:-1px;';
+    root.append(logo, by, tl); Object.assign(s, { logo, by, tl });
+  } else if (s.type === 'outro') {
+    s.phones = ['f03-home', 'p03-home-midnight', 't01-team-home', 'p10-live', 'f04-chat'].map((src) => { const p = makePhone(src); root.appendChild(p.pw); return p; });
+    const logo = el('img'); logo.src = 'ugent-wordmark-dark.svg'; logo.style.cssText = 'position:absolute;left:810px;top:70px;width:300px;';
+    const plans = el('div', null, 'Free &nbsp;·&nbsp; Pro $2 a month &nbsp;·&nbsp; Team $21 a month');
+    plans.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:880px;font-size:40px;font-weight:600;color:#FFFFFF;';
+    const soon = el('div', null, 'Coming to iPhone and Android &nbsp;·&nbsp; by Me AI');
+    soon.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:950px;font-size:30px;font-weight:500;color:#38BDF8;letter-spacing:1px;';
+    root.append(logo, plans, soon); Object.assign(s, { logo, plans, soon });
+  }
+}
+
+/* ---------- Layout of phones in a beat ---------- */
+function slots(n, side) {
+  const m = side === 'right' ? 1 : -1; // phones on the right of the frame when text sits left
+  const L = n === 1 ? [{ x: 420, z: 40, ry: -20, y: 30 }]
+    : n === 2 ? [{ x: 290, z: -160, ry: -26, y: 10 }, { x: 560, z: 60, ry: -16, y: 50 }]
+    : [{ x: 170, z: -260, ry: -30, y: 0 }, { x: 430, z: 30, ry: -18, y: 50 }, { x: 690, z: -260, ry: -6, y: 0 }];
+  return L.map((s) => ({ ...s, x: s.x * m, ry: s.ry * m }));
+}
+
+/* ---------- Render one moment ---------- */
+const bgs = { light: document.getElementById('bg-light'), dark: document.getElementById('bg-dark'), sky: document.getElementById('bg-sky') };
+const floors = { light: document.getElementById('floor-light'), dark: document.getElementById('floor-dark') };
+const themeAt = (t) => (SEGMENTS.find((s) => t >= s.start && t < s.start + s.dur) || SEGMENTS[SEGMENTS.length - 1]).theme;
+function themeWeights(t) {
+  const w = { light: 0, dark: 0, sky: 0 }; const K = 13;
+  for (let i = 0; i < K; i++) w[themeAt(t - 0.45 + (0.9 * i) / (K - 1))] += 1 / K;
+  return w;
+}
+
+function render(t) {
+  const w = themeWeights(t);
+  bgs.light.style.opacity = 1; bgs.dark.style.opacity = w.dark; bgs.sky.style.opacity = w.sky;
+  floors.light.style.opacity = w.light + w.sky; floors.dark.style.opacity = w.dark;
+  for (const f of Object.values(floors)) f.style.backgroundPosition = `0 ${(t * 36) % 120}px`;
+  const o1 = document.getElementById('orb1'), o2 = document.getElementById('orb2');
+  o1.style.transform = `translate(${1250 + Math.sin(t * 0.3) * 140}px, ${80 + Math.cos(t * 0.25) * 90}px)`;
+  o2.style.transform = `translate(${180 + Math.cos(t * 0.22) * 160}px, ${620 + Math.sin(t * 0.3) * 80}px)`;
+  o1.style.opacity = 0.55 + w.dark * 0.45; o2.style.opacity = 0.45 + w.dark * 0.4;
+
+  const cur = SEGMENTS.find((s) => t >= s.start && t < s.start + s.dur) || SEGMENTS[SEGMENTS.length - 1];
+  // HUD: logo and plan badge during the plan chapters.
+  const hudOn = cur.type !== 'intro' && cur.type !== 'outro';
+  const logo = document.getElementById('hud-logo'); logo.src = w.dark > 0.5 ? 'ugent-wordmark-dark.svg' : 'ugent-wordmark.svg';
+  logo.style.opacity = hudOn ? clamp((t - 6) / 0.6) * clamp((TOTAL - 9 - t) / 0.5) : 0;
+  const badge = document.getElementById('hud-plan'); const bar = document.getElementById('hud-bar');
+  if (cur.plan) {
+    badge.textContent = PLAN_LABEL[cur.plan];
+    const dark = cur.theme === 'dark';
+    badge.style.background = dark ? 'rgba(56,189,248,0.16)' : '#0B3D91'; badge.style.color = dark ? '#E6F4FF' : '#FFFFFF';
+    badge.style.boxShadow = dark ? 'inset 0 0 0 1.5px rgba(56,189,248,0.4)' : 'none';
+    const planSegs = SEGMENTS.filter((s) => s.plan === cur.plan);
+    const a = planSegs[0].start, b = planSegs[planSegs.length - 1].start + planSegs[planSegs.length - 1].dur;
+    badge.style.opacity = clamp((t - a) / 0.5) * clamp((b - t) / 0.4);
+    bar.style.opacity = badge.style.opacity; bar.style.background = dark ? 'rgba(255,255,255,0.12)' : 'rgba(11,61,145,0.1)';
+    bar.firstChild.style.background = dark ? '#38BDF8' : '#0EA5E9'; bar.firstChild.style.width = `${clamp((t - a) / (b - a)) * 100}%`;
+  } else { badge.style.opacity = 0; bar.style.opacity = 0; }
+
+  for (const s of SEGMENTS) {
+    const u = t - s.start;
+    const active = u >= -0.05 && u < s.dur + 0.05;
+    s.root.style.display = active ? 'block' : 'none';
+    if (!active) continue;
+    const inK = (d, delay = 0) => easeOut((u - delay) / d);
+    const outK = (d) => easeIn((u - (s.dur - d)) / d);
+
+    if (s.type === 'intro') {
+      const k = easeOut(u / 1.6);
+      s.logo.style.transform = `perspective(1400px) translateZ(${lerp(-900, 0, k)}px) rotateY(${lerp(75, 0, k)}deg) rotateX(${lerp(20, 0, k)}deg)`;
+      s.logo.style.opacity = clamp(u / 0.8) * (1 - outK(0.8));
+      s.logo.style.filter = `drop-shadow(0 0 ${lerp(0, 40, k)}px rgba(56,189,248,0.55))`;
+      s.by.style.opacity = clamp((u - 1.4) / 0.6) * (1 - outK(0.8));
+      s.tl.style.opacity = clamp((u - 2.2) / 0.7) * (1 - outK(0.8));
+      s.tl.style.transform = `translateY(${lerp(40, 0, inK(0.9, 2.2))}px) translateZ(${outK(0.8) * 300}px)`;
+      s.logo.style.transform += ` translateZ(${outK(0.8) * 500}px)`;
+    }
+
+    if (s.type === 'beat' || s.type === 'hero') {
+      const hero = s.type === 'hero';
+      const exit = outK(0.55);
+      const m = s.side === 'right' ? 1 : -1;
+      // Text: parts rise in one after another; chips pop in.
+      s.parts.forEach((p, i) => { const k = inK(0.7, 0.15 + i * 0.12); p.style.opacity = k * (1 - exit); p.style.transform = `translateY(${(1 - k) * 40}px)`; });
+      s.chipEls.forEach((c, i) => { const k = inK(0.5, 0.55 + i * 0.12); c.style.opacity = k * (1 - exit); c.style.transform = `translateY(${(1 - k) * 18}px) scale(${0.9 + 0.1 * k})`; });
+      s.txt.style.top = hero ? '250px' : `${540 - (s.txt.offsetHeight || 420) / 2}px`;
+      s.txt.style.transform = `translate3d(${-m * exit * 120}px, 0, ${-exit * 200}px)`;
+      const L = hero ? [{ x: 430, z: 80, ry: -20, y: 30 }] : slots(s.phones.length, s.side);
+      s.phones.forEach((p, i) => {
+        const d = hero ? 0.1 : 0.05 + i * 0.13;
+        const k = inK(hero ? 1.6 : 1.0, d);
+        const target = L[i];
+        const drift = Math.sin(u * 0.8 + i * 1.7) * 4;
+        const bob = Math.sin(u * 1.2 + i * 2.1) * 9;
+        const slow = (u / s.dur - 0.5) * 8 * m; // a slow camera-like turn across the beat
+        placePhone(p, {
+          x: lerp(target.x + m * 380, target.x, k) - m * exit * 260,
+          y: lerp(target.y + (hero ? 520 : 140), target.y, k) + bob,
+          z: lerp(target.z - 900, target.z, k) - exit * 700,
+          ry: lerp(target.ry - m * 60, target.ry, k) + drift - slow + exit * -m * 30,
+          rx: lerp(18, 4, k) + Math.sin(u * 0.6 + i) * 2,
+          rz: (1 - k) * m * -6,
+          scale: hero ? 1.1 : (s.phones.length === 3 ? 0.94 : s.phones.length === 2 ? 1.02 : 1.1),
+          o: clamp((u - d) / 0.35) * (1 - exit),
+        });
+      });
+      if (s.ring) {
+        // Live: a soft sound ring pulses from the mic on screen.
+        const ph = L[0]; const pulse = (u * 0.9) % 1;
+        s.ring.style.left = `${960 + ph.x - 100}px`; s.ring.style.top = `${540 + ph.y + 150}px`;
+        s.ring.style.transform = `translateZ(${ph.z + 30}px) scale(${0.6 + pulse * 1.6})`;
+        s.ring.style.opacity = (1 - pulse) * clamp((u - 1) / 0.4) * (1 - exit) * 0.9;
+      }
+    }
+
+    if (s.type === 'chapter') {
+      const k = inK(1.1);
+      const exit = outK(0.6);
+      s.big.style.transform = `translateZ(${lerp(-1400, 0, k) + exit * 900}px) rotateX(${lerp(55, 8, k) - exit * 10}deg) rotateY(${Math.sin(u * 0.9) * 10}deg)`;
+      s.big.style.opacity = clamp(u / 0.4) * (1 - exit);
+      s.price.style.opacity = inK(0.6, 0.7) * (1 - exit); s.price.style.transform = `translateY(${(1 - inK(0.6, 0.7)) * 30}px)`;
+      s.tag.style.opacity = inK(0.6, 1.0) * (1 - exit); s.tag.style.transform = `translateY(${(1 - inK(0.6, 1.0)) * 30}px)`;
+    }
+
+    if (s.type === 'outro') {
+      const n = s.phones.length;
+      const R = 1100;
+      const spin = lerp(-40, 40, easeInOut(u / s.dur));
+      const k = inK(1.4);
+      s.phones.forEach((p, i) => {
+        const a = ((i - (n - 1) / 2) * 21 + spin * 0.6) * Math.PI / 180;
+        const o = clamp((u - 0.15 * i) / 0.6);
+        placePhone(p, {
+          x: Math.sin(a) * R, y: lerp(400, 60, k) + Math.sin(u * 1.1 + i) * 8,
+          z: (Math.cos(a) - 1) * R - 260, ry: a * 180 / Math.PI * 0.8, rx: 6, scale: 0.86,
+          o: o * (1 - clamp((u - (s.dur - 0.8)) / 0.8)),
+        });
+      });
+      s.logo.style.opacity = inK(0.8, 1.6); s.logo.style.transform = `translateY(${(1 - inK(0.8, 1.6)) * -30}px)`;
+      s.plans.style.opacity = inK(0.7, 2.6); s.plans.style.transform = `translateY(${(1 - inK(0.7, 2.6)) * 30}px)`;
+      s.soon.style.opacity = inK(0.7, 3.4);
+      const fade = clamp((u - (s.dur - 0.7)) / 0.7);
+      s.root.style.opacity = 1 - fade;
+    }
+  }
+}
+
+window.TOTAL = TOTAL;
+window.SEGMENTS = SEGMENTS.map((s) => ({ type: s.type, title: s.title || s.name || s.type, start: s.start, dur: s.dur }));
+window.setTime = (t) => { render(t); };
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => (i.complete ? null : new Promise((r) => { i.onload = i.onerror = r; }))));
+  render(0);
+  return TOTAL;
+})();
+const qs = new URLSearchParams(location.search);
+if (qs.has('t')) window.ready.then(() => render(Number(qs.get('t'))));
+else if (qs.has('play')) { const t0 = performance.now(); const loop = () => { render(((performance.now() - t0) / 1000) % TOTAL); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>

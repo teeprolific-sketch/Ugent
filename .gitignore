@@ -12,3 +12,10 @@ android/
 !.env.example
 npm-debug.*
 .DS_Store
+
+# Brand film build outputs
+brand/video/scene/fonts/
+brand/video/scene/*.svg
+brand/video/*.mp4
+brand/video/*.wav
+brand/video/timeline.json
