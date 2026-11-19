@@ -122,8 +122,11 @@ SEGS.forEach((s, n) => {
     s.phones = shots.map((src) => { const p = makePhone(src); root.appendChild(p.pw); return p; });
     s.pose = pose; s.fan = fan;
     const word = el('div', 'word' + (fan ? ' fan' : ''));
-    word.innerHTML = `<div class="tag">${PLAN[s.plan][0].toUpperCase()}</div><div class="w">${s.word}</div>`;
-    const ghost = el('div', 'ghost', s.word); word.appendChild(ghost);
+    // Keep short names like "Domestica I" on one line, and scale long phrases so they fit.
+    const text = s.word.replace(/ a day$/, '<br>a&nbsp;day').replace(/ (I|AI|Blue|Team|\+ Team)$/, '&nbsp;$1').replace(/^(\d+) /, '$1&nbsp;');
+    const size = s.word.length <= 8 ? (fan ? 112 : 150) : s.word.length <= 12 ? (fan ? 104 : 126) : (fan ? 92 : 108);
+    word.innerHTML = `<div class="tag">${PLAN[s.plan][0].toUpperCase()}</div><div class="w" style="font-size:${size}px">${text}</div>`;
+    const ghost = el('div', 'ghost', text); ghost.style.fontSize = `${size}px`; word.appendChild(ghost);
     word.style.left = fan ? '510px' : pose.x < 0 ? '900px' : '120px';
     root.appendChild(word); s.word = word; s.ghost = ghost;
   } else if (s.type === 'label') {

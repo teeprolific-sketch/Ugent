@@ -188,12 +188,12 @@ left = drums + bass + stabs_l * 1.1 + arp * 0.9 + fx + hats_l + reverb(stabs_l +
 right = drums + bass + stabs_r * 1.1 + arp * 0.9 + fx + hats_r + reverb(stabs_r + arp + drums * 0.3, 2)
 st = np.stack([left, right], axis=1)
 
-# Glue: gentle saturation, a short fade-out of the tail, normalise to -1 dBFS.
+# Glue: gentle saturation, a short fade-out of the tail, normalise with headroom for the AAC encoder.
 st = np.tanh(st * 1.4) / np.tanh(1.4)
 tail = np.clip((DUR - pos / SR) / 0.25, 0, 1)
 st *= tail[:, None]
 st /= np.max(np.abs(st)) + 1e-9
-st *= 10 ** (-1 / 20)
+st *= 10 ** (-3 / 20)
 pcm = (st * 32767).astype(np.int16)
 with wave.open(sys.argv[1], 'wb') as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
