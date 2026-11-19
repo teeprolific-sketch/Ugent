@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ugent: 30-second cut</title>
+<style>
+  @font-face { font-family: Outfit; font-weight: 500; src: url(../scene/fonts/Outfit_500Medium.ttf); }
+  @font-face { font-family: Outfit; font-weight: 600; src: url(../scene/fonts/Outfit_600SemiBold.ttf); }
+  @font-face { font-family: Outfit; font-weight: 700; src: url(../scene/fonts/Outfit_700Bold.ttf); }
+  html, body { margin: 0; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Outfit, sans-serif; }
+  #cam { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 45%; }
+  .bg { position: absolute; inset: 0; }
+  #bg-light { background: radial-gradient(1100px 800px at 50% 40%, #E3F3FD 0%, #FFFFFF 70%); }
+  #bg-dark { background: radial-gradient(1200px 900px at 50% 35%, #12397A 0%, #0A2149 40%, #050F24 80%); }
+  #bg-sky { background: radial-gradient(900px 700px at 50% 30%, #BAE6FD 0%, rgba(186,230,253,0) 70%), linear-gradient(135deg, #D6EEFD 0%, #EFF8FF 50%, #FFFFFF 100%); }
+  .streak { position: absolute; width: 2400px; height: 46px; left: -240px; transform-origin: 50% 50%; border-radius: 30px; }
+  #world { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .seg { position: absolute; inset: 0; transform-style: preserve-3d; display: none; }
+
+  .pw { position: absolute; left: 960px; top: 540px; width: 0; height: 0; transform-style: preserve-3d; }
+  .phone { position: absolute; left: -180px; top: -376px; width: 360px; height: 752px; transform-style: preserve-3d; }
+  .edge { position: absolute; inset: 0; border-radius: 58px; background: #0C1730; }
+  .edge.hi { background: #1C2C4D; }
+  .front { position: absolute; inset: 0; border-radius: 58px; background: linear-gradient(145deg, #23365C, #0B1428 60%); padding: 12px; box-sizing: border-box; transform: translateZ(0.5px); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.18); }
+  .screen { position: relative; width: 336px; height: 728px; border-radius: 47px; overflow: hidden; background: #fff; }
+  .screen img { width: 100%; height: 100%; display: block; }
+  .glare { position: absolute; inset: 0; border-radius: 58px; transform: translateZ(1px); background: linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.25) 45%, rgba(255,255,255,0) 58%); background-size: 300% 100%; }
+  .back { position: absolute; inset: 0; border-radius: 58px; transform: translateZ(-16px) rotateY(180deg); background: linear-gradient(160deg, #0EA5E9, #0B3D91); }
+
+  .word { position: absolute; top: 0; width: 900px; text-align: center; transform-style: flat; }
+  .word .tag { font-size: 30px; font-weight: 700; letter-spacing: 10px; }
+  .word .w { font-size: 150px; font-weight: 700; line-height: 0.95; letter-spacing: -3px; text-transform: uppercase; margin-top: 10px; }
+  .word .ghost { position: absolute; left: 0; right: 0; font-size: 150px; font-weight: 700; line-height: 0.95; letter-spacing: -3px; text-transform: uppercase; color: transparent; }
+  .word.fan .w, .word.fan .ghost { font-size: 112px; }
+  .t-light .w, .t-sky .w { color: #0B3D91; } .t-dark .w { color: #FFFFFF; }
+  .t-light .tag, .t-sky .tag { color: #0EA5E9; } .t-dark .tag { color: #38BDF8; }
+  .t-light .ghost, .t-sky .ghost { -webkit-text-stroke: 3px rgba(14,165,233,0.55); } .t-dark .ghost { -webkit-text-stroke: 3px rgba(56,189,248,0.6); }
+
+  .big { position: absolute; left: 0; width: 1920px; text-align: center; top: 250px; font-size: 360px; font-weight: 700; letter-spacing: -8px; line-height: 1; transform-style: preserve-3d; }
+  .big span { position: absolute; left: 0; width: 100%; }
+  .price { position: absolute; left: 0; width: 1920px; text-align: center; top: 700px; font-size: 96px; font-weight: 700; letter-spacing: -1px; }
+
+  #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; }
+  .hud { position: absolute; z-index: 5; }
+  #hud-logo { left: 64px; top: 50px; width: 150px; }
+  #hud-plan { right: 64px; top: 52px; font-size: 24px; font-weight: 700; letter-spacing: 3px; padding: 12px 22px; border-radius: 999px; }
+  #beatbar { position: absolute; left: 64px; right: 64px; bottom: 46px; height: 6px; display: flex; gap: 6px; z-index: 5; }
+  #beatbar i { flex: 1; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="cam">
+    <div class="bg" id="bg-light"></div><div class="bg" id="bg-dark"></div><div class="bg" id="bg-sky"></div>
+    <div id="streaks"></div>
+    <div id="world"></div>
+  </div>
+  <div id="flash"></div>
+  <img class="hud" id="hud-logo" src="../scene/ugent-wordmark.svg" alt="">
+  <div class="hud" id="hud-plan"></div>
+  <div id="beatbar"></div>
+</div>
+<script>
+/* 128 BPM, 64 beats = 30.0 s. Every cut lands on a kick. */
+const BPM = 128, B = 60 / BPM, BEATS = 64, TOTAL = BEATS * B;
+const CUTS = {
+  free: [['f02-languages', '6 languages'], ['f03-home', 'Daily brief'], ['f04-chat', 'Talk'], ['f05-capture', 'Capture'], ['f06-plan', 'Plan'],
+    ['f07-tasks', 'Tasks'], ['f15-focus', 'Focus'], ['f14-offline-tasks', 'Offline'], ['f10-offline', 'Low data'], ['f09-memory', 'Memory'],
+    ['f08-search', 'Search'], ['f04-chat', '10 AI chats a day'], ['f13-home-black', 'Black'], ['f03-home', 'White']],
+  pro: [['p10-live', 'Live voice'], ['p07-reschedule', 'Reschedule'], ['f06b-week', 'Auto-plan'], ['p04-insights', 'Insights'], ['p05-connections', 'Google'],
+    ['p06-whatsapp', 'WhatsApp Business'], ['p08-sleek-chat', 'Sleek'], ['p08-sleek-chat', 'Domestica I'], ['p09-ecosystem', 'Afrika I'], ['p09-ecosystem', "ID'd"],
+    ['p01-appearance', 'Themes'], ['p03-home-midnight', 'Midnight'], ['p02-home-blue', 'Ugent Blue'], ['p04-insights', '300 AI chats a day']],
+  team: [['t01-team-home', 'Team home'], ['f03-home', 'Personal'], ['t01-team-home', '+ Team'], ['t02-team-calendar', 'Shared calendar'], ['t03-team-board', 'Task board'],
+    ['t03-team-board', 'Assign'], ['t04-team-dashboard', 'Dashboard'], ['t06-team-analytics', 'Analytics'], ['t05-team-admin', 'Roles'], ['t05-team-admin', 'Invite code'],
+    ['t02-team-calendar', 'Everyone'], ['t04-team-dashboard', 'In sync'], ['t01-team-home', 'Together'], ['t06-team-analytics', 'Grow']],
+};
+const PLAN = { free: ['Free', '$0 forever', 'light'], pro: ['Pro', '$2 a month', 'dark'], team: ['Team', '$21 a month', 'sky'] };
+const BADGE = { free: 'FREE  ·  $0', pro: 'PRO  ·  $2 / MONTH', team: 'TEAM  ·  $21 / MONTH' };
+
+// Beat map: intro 0-7, Free label 8-9 + cuts 10-23, Pro 24-25 + 26-39, Team 40-41 + 42-55, outro 56-63.
+const SEGS = [];
+SEGS.push({ type: 'intro', b0: 0, b1: 8, theme: 'dark' });
+let b = 8;
+for (const plan of ['free', 'pro', 'team']) {
+  SEGS.push({ type: 'label', plan, b0: b, b1: b + 2, theme: PLAN[plan][2] }); b += 2;
+  CUTS[plan].forEach(([shot, word], i) => { SEGS.push({ type: 'cut', plan, shot, word, i, b0: b, b1: b + 1, theme: PLAN[plan][2] }); b += 1; });
+}
+SEGS.push({ type: 'outro', b0: b, b1: BEATS, theme: 'dark' });
+
+const clamp = (x, a = 0, c = 1) => Math.max(a, Math.min(c, x));
+const easeOut = (x) => 1 - Math.pow(1 - clamp(x), 4);
+const lerp = (a, c, k) => a + (c - a) * k;
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const rand = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+function makePhone(src) {
+  const pw = el('div', 'pw'); const ph = el('div', 'phone');
+  for (let i = 15; i >= 1; i--) { const e = el('div', 'edge' + (i % 5 === 0 ? ' hi' : '')); e.style.transform = `translateZ(${-i}px)`; ph.appendChild(e); }
+  ph.appendChild(el('div', 'back'));
+  const front = el('div', 'front'); const scr = el('div', 'screen'); const img = el('img'); img.src = `../scene/shots/${src}.png`; scr.appendChild(img); front.appendChild(scr); ph.appendChild(front);
+  const glare = el('div', 'glare'); ph.appendChild(glare); pw.appendChild(ph);
+  return { pw, ph, glare };
+}
+function place(p, s) {
+  p.pw.style.transform = `translate3d(${s.x}px, ${s.y}px, ${s.z}px)`;
+  p.ph.style.transform = `rotateY(${s.ry}deg) rotateX(${s.rx || 0}deg) rotateZ(${s.rz || 0}deg) scale(${s.scale || 1})`;
+  p.pw.style.opacity = s.o ?? 1;
+  p.glare.style.backgroundPosition = `${50 + s.ry * 2.4}% 0`;
+}
+
+/* ---------- Build ---------- */
+const world = document.getElementById('world');
+const POSES = [{ x: -420, ry: 30, rz: -5, rx: 6 }, { x: 420, ry: -30, rz: 5, rx: 6 }, { x: -380, ry: 20, rz: 3, rx: -8 }, { x: 400, ry: -22, rz: -3, rx: -6 }];
+SEGS.forEach((s, n) => {
+  const root = el('div', 'seg t-' + s.theme); world.appendChild(root); s.root = root;
+  if (s.type === 'cut') {
+    const pose = POSES[s.i % POSES.length];
+    const fan = s.b0 % 4 === 0; // on each bar's downbeat: a burst of three phones
+    const list = CUTS[s.plan];
+    const shots = fan ? [list[(s.i + list.length - 1) % list.length][0], s.shot, list[(s.i + 1) % list.length][0]] : [s.shot];
+    s.phones = shots.map((src) => { const p = makePhone(src); root.appendChild(p.pw); return p; });
+    s.pose = pose; s.fan = fan;
+    const word = el('div', 'word' + (fan ? ' fan' : ''));
+    word.innerHTML = `<div class="tag">${PLAN[s.plan][0].toUpperCase()}</div><div class="w">${s.word}</div>`;
+    const ghost = el('div', 'ghost', s.word); word.appendChild(ghost);
+    word.style.left = fan ? '510px' : pose.x < 0 ? '900px' : '120px';
+    root.appendChild(word); s.word = word; s.ghost = ghost;
+  } else if (s.type === 'label') {
+    const big = el('div', 'big'); const dark = s.theme === 'dark';
+    const N = 22;
+    for (let i = N; i >= 0; i--) {
+      const sp = el('span', null, PLAN[s.plan][0]); sp.style.transform = `translateZ(${-i * 3}px)`;
+      sp.style.color = i === 0 ? (dark ? '#FFFFFF' : '#0B3D91') : i < N / 2 ? (dark ? '#38BDF8' : '#0EA5E9') : (dark ? '#0369A1' : '#0B3D91');
+      if (i === 0 && dark) sp.style.textShadow = '0 0 50px rgba(56,189,248,0.5)';
+      big.appendChild(sp);
+    }
+    const price = el('div', 'price', PLAN[s.plan][1]); price.style.color = dark ? '#38BDF8' : '#0EA5E9';
+    root.append(big, price); s.big = big; s.price = price;
+  } else if (s.type === 'intro') {
+    const words = ['Your', 'day.', 'Handled.'].map((w) => { const d = el('div', null, w); d.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:380px;font-size:230px;font-weight:700;letter-spacing:-6px;color:#fff;text-transform:uppercase;'; root.appendChild(d); return d; });
+    const logo = el('img'); logo.src = '../scene/ugent-wordmark-dark.svg'; logo.style.cssText = 'position:absolute;left:560px;top:280px;width:800px;';
+    const by = el('div', null, 'by Me AI'); by.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:660px;font-size:44px;font-weight:600;letter-spacing:4px;color:#38BDF8;';
+    root.append(logo, by); Object.assign(s, { words, logo, by });
+  } else if (s.type === 'outro') {
+    s.phones = ['f03-home', 'p03-home-midnight', 't01-team-home', 'p10-live', 'f04-chat'].map((src) => { const p = makePhone(src); root.appendChild(p.pw); return p; });
+    const logo = el('img'); logo.src = '../scene/ugent-wordmark-dark.svg'; logo.style.cssText = 'position:absolute;left:785px;top:60px;width:350px;';
+    const plans = el('div', null, 'FREE &nbsp;·&nbsp; PRO $2 &nbsp;·&nbsp; TEAM $21'); plans.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:880px;font-size:64px;font-weight:700;color:#fff;letter-spacing:1px;';
+    const soon = el('div', null, 'Coming to iPhone and Android &nbsp;·&nbsp; by Me AI'); soon.style.cssText = 'position:absolute;left:0;width:1920px;text-align:center;top:972px;font-size:34px;font-weight:600;color:#38BDF8;letter-spacing:1px;';
+    root.append(logo, plans, soon); Object.assign(s, { logo, plans, soon });
+  }
+});
+const streaks = document.getElementById('streaks');
+const STREAKS = Array.from({ length: 7 }, (_, i) => { const d = el('div', 'streak'); streaks.appendChild(d); return d; });
+const bar = document.getElementById('beatbar'); const TICKS = Array.from({ length: 16 }, () => { const i = el('i'); bar.appendChild(i); return i; });
+
+/* ---------- Render ---------- */
+const bgs = { light: document.getElementById('bg-light'), dark: document.getElementById('bg-dark'), sky: document.getElementById('bg-sky') };
+function render(t) {
+  const beat = t / B, bi = Math.floor(beat), bf = beat - bi; // beat index and position inside it (0..1)
+  const sec = bf * B; // seconds since the last beat
+  const cur = SEGS.find((s) => bi >= s.b0 && bi < s.b1) || SEGS[SEGS.length - 1];
+  const dark = cur.theme === 'dark';
+  for (const k in bgs) bgs[k].style.opacity = k === cur.theme ? 1 : 0;
+  const kick = bi >= 8; // the drop starts at beat 8
+  const punch = kick || cur.type === 'intro' ? Math.exp(-sec / 0.07) : 0;
+
+  // Camera: a kick on every beat, a bigger hit on each bar's downbeat.
+  const amp = (bi % 4 === 0 ? 16 : 8) * punch * (cur.type === 'intro' && bi < 4 ? 0.4 : 1);
+  document.getElementById('cam').style.transform = `translate(${(rand(bi) - 0.5) * 2 * amp}px, ${(rand(bi + 99) - 0.5) * 2 * amp}px) scale(${1 + 0.018 * punch})`;
+  // Flash on downbeats and on every plan title.
+  const big = bi % 4 === 0 || cur.type === 'label' && bi === cur.b0 || (cur.type === 'intro' && bi === 4) || bi === 62;
+  document.getElementById('flash').style.opacity = big ? (bi === 62 ? 0.9 : 0.55) * Math.exp(-sec / 0.09) : 0;
+
+  // Light streaks racing across the background.
+  STREAKS.forEach((d, i) => {
+    const speed = 2600 + i * 400; const y = 80 + i * 150;
+    const x = ((t * speed + i * 900) % 4800) - 2400;
+    d.style.top = `${y}px`; d.style.transform = `translateX(${x}px) rotate(-14deg) scaleY(${0.25 + 0.75 * rand(i)})`;
+    d.style.background = dark ? `linear-gradient(90deg, rgba(56,189,248,0), rgba(56,189,248,${0.10 + punch * 0.12}), rgba(56,189,248,0))` : `linear-gradient(90deg, rgba(14,165,233,0), rgba(14,165,233,${0.07 + punch * 0.08}), rgba(14,165,233,0))`;
+  });
+
+  // HUD
+  const hud = cur.plan && cur.type !== 'intro';
+  const logo = document.getElementById('hud-logo'); logo.src = dark ? '../scene/ugent-wordmark-dark.svg' : '../scene/ugent-wordmark.svg';
+  logo.style.opacity = hud ? 1 : 0;
+  const badge = document.getElementById('hud-plan');
+  badge.style.opacity = hud ? 1 : 0;
+  if (cur.plan) { badge.textContent = BADGE[cur.plan]; badge.style.background = dark ? 'rgba(56,189,248,0.16)' : '#0B3D91'; badge.style.color = dark ? '#E6F4FF' : '#FFFFFF'; badge.style.boxShadow = dark ? 'inset 0 0 0 1.5px rgba(56,189,248,0.4)' : 'none'; }
+  bar.style.opacity = kick && cur.type !== 'outro' ? 1 : 0;
+  TICKS.forEach((d, i) => { const on = i === bi % 16; d.style.background = on ? (dark ? '#38BDF8' : '#0EA5E9') : (dark ? 'rgba(255,255,255,0.14)' : 'rgba(11,61,145,0.12)'); d.style.transform = `scaleY(${on ? 1 + 1.5 * punch : 1})`; });
+
+  for (const s of SEGS) {
+    const active = s === cur; s.root.style.display = active ? 'block' : 'none';
+    if (!active) continue;
+    const u = t - s.b0 * B; // seconds into this segment
+
+    if (s.type === 'intro') {
+      // Beats 0-2: three words punch in; beat 3: silence before the hit; beat 4: the wordmark slams; beat 6: by Me AI.
+      s.words.forEach((w, i) => { const on = bi === i; const k = easeOut(sec / 0.09); w.style.opacity = on ? 1 : 0; w.style.transform = `scale(${on ? lerp(1.5, 1, k) : 1})`; w.style.color = i === 2 ? '#38BDF8' : '#FFFFFF'; });
+      const lk = easeOut((t - 4 * B) / 0.14);
+      s.logo.style.opacity = bi >= 4 ? 1 : 0;
+      s.logo.style.transform = `perspective(1200px) translateZ(${lerp(-1400, 0, lk)}px) rotateX(${lerp(40, 0, lk)}deg) scale(${1 + 0.03 * punch})`;
+      s.logo.style.filter = `drop-shadow(0 0 ${30 + 40 * punch}px rgba(56,189,248,0.6))`;
+      s.by.style.opacity = bi >= 6 ? 1 : 0; s.by.style.transform = `translateY(${bi >= 6 ? lerp(30, 0, easeOut((t - 6 * B) / 0.12)) : 30}px)`;
+    }
+
+    if (s.type === 'label') {
+      const k = easeOut(u / 0.16);
+      s.big.style.transform = `translateZ(${lerp(-1800, 0, k)}px) rotateX(${lerp(60, 10, k)}deg) rotateY(${Math.sin(u * 3) * 8}deg) scale(${1 + 0.04 * punch})`;
+      const second = bi >= s.b0 + 1;
+      s.price.style.opacity = second ? 1 : 0;
+      s.price.style.transform = `scale(${second ? lerp(1.6, 1, easeOut((u - B) / 0.1)) : 1})`;
+    }
+
+    if (s.type === 'cut') {
+      const k = easeOut(u / 0.13); // the slam
+      const m = s.pose.x < 0 ? -1 : 1;
+      s.phones.forEach((p, j) => {
+        let x = s.pose.x, ry = s.pose.ry, z = 0, scale = 1.18, rz = s.pose.rz;
+        if (s.fan) { x = (j - 1) * 440; ry = (j - 1) * -26; z = j === 1 ? 120 : -160; scale = 0.8; rz = (j - 1) * 3; }
+        place(p, {
+          x: lerp(x + (s.fan ? (j - 1) * 500 : m * 500), x, k) + u * -m * 60,
+          y: lerp(260, s.fan ? 150 : 20, k) + (s.fan ? Math.abs(j - 1) * 24 : 0),
+          z: lerp(z + 700, z, k),
+          ry: lerp(ry - m * 50, ry, k) + u * m * 10,
+          rx: lerp(-30, s.pose.rx, k), rz,
+          scale: scale * (1 + 0.025 * punch), o: clamp(u / 0.04),
+        });
+      });
+      const wk = easeOut(u / 0.1);
+      s.word.style.top = s.fan ? '96px' : '360px';
+      s.word.style.transform = `scale(${lerp(1.45, 1, wk) + 0.03 * punch}) skewX(${lerp(-12, 0, wk)}deg)`;
+      s.word.style.opacity = clamp(u / 0.03);
+      s.ghost.style.top = '50px';
+      s.ghost.style.transform = `scale(${1 + u * 1.2})`; s.ghost.style.opacity = clamp(0.9 - u * 2.4);
+    }
+
+    if (s.type === 'outro') {
+      const n = s.phones.length; const k = easeOut(u / 0.4);
+      s.phones.forEach((p, i) => {
+        const a = ((i - (n - 1) / 2) * 21 + lerp(-160, 0, k) + u * 6) * Math.PI / 180;
+        place(p, { x: Math.sin(a) * 1100, y: 10 + Math.sin(u * 3 + i) * 6, z: (Math.cos(a) - 1) * 1100 - 260, ry: a * 180 / Math.PI * 0.8, rx: 6, scale: 0.74 * (1 + 0.02 * punch), o: clamp(u / 0.1) });
+      });
+      s.logo.style.opacity = 1; s.logo.style.transform = `scale(${lerp(1.6, 1, k) + 0.03 * punch})`;
+      s.logo.style.filter = `drop-shadow(0 0 ${20 + 40 * punch}px rgba(56,189,248,0.6))`;
+      const pl = bi >= 58, so = bi >= 60;
+      s.plans.style.opacity = pl ? 1 : 0; s.plans.style.transform = `scale(${pl ? lerp(1.4, 1, easeOut((t - 58 * B) / 0.12)) : 1})`;
+      s.soon.style.opacity = so ? 1 : 0; s.soon.style.transform = `translateY(${so ? lerp(30, 0, easeOut((t - 60 * B) / 0.12)) : 30}px)`;
+    }
+  }
+}
+
+window.TOTAL = TOTAL; window.BPM = BPM;
+window.setTime = (t) => render(t);
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((i) => (i.complete ? null : new Promise((r) => { i.onload = i.onerror = r; }))));
+  render(0); return TOTAL;
+})();
+const qs = new URLSearchParams(location.search);
+if (qs.has('t')) window.ready.then(() => render(Number(qs.get('t'))));
+else if (qs.has('play')) { const t0 = performance.now(); const loop = () => { render(((performance.now() - t0) / 1000) % TOTAL); requestAnimationFrame(loop); }; window.ready.then(loop); }
+</script>
+</body>
+</html>

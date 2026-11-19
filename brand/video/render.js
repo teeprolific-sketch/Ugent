@@ -8,7 +8,10 @@ const path = require('path');
 
 const here = __dirname;
 const root = path.resolve(here, '../..');
-const scene = path.join(here, 'scene', 'index.html');
+const args = process.argv.slice(2);
+const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
+const which = opt('--scene', 'scene'); // 'scene' (the 1 min 50 s film) or 'fast' (the 30-second cut)
+const scene = path.join(here, which, 'index.html');
 // The scene uses the app's fonts and the brand wordmark; copy them next to it.
 fs.mkdirSync(path.join(here, 'scene', 'fonts'), { recursive: true });
 for (const w of ['400Regular', '500Medium', '600SemiBold', '700Bold']) {
@@ -16,11 +19,11 @@ for (const w of ['400Regular', '500Medium', '600SemiBold', '700Bold']) {
 }
 for (const f of ['ugent-wordmark.svg', 'ugent-wordmark-dark.svg']) fs.copyFileSync(path.join(root, 'brand', f), path.join(here, 'scene', f));
 
-const args = process.argv.slice(2);
 const timelineOnly = args.includes('--timeline');
-const out = args.find((a) => a.endsWith('.mp4')) || path.join(here, 'ugent-brand-film.mp4');
-const music = path.join(here, 'music.wav');
-const FPS = Number(args.find((a) => /^\d+$/.test(a)) || 30);
+const out = args.find((a) => a.endsWith('.mp4')) || path.join(here, which === 'fast' ? 'ugent-30s.mp4' : 'ugent-brand-film.mp4');
+const music = opt('--music', path.join(here, which === 'fast' ? 'music-fast.wav' : 'music.wav'));
+const FPS = Number(opt('--fps', which === 'fast' ? 60 : 30));
+const bitrate = opt('--bitrate', null); // e.g. 5500k for a target size; default is quality-based (CRF 18)
 (async () => {
   const b = await chromium.launch();
   const p = await (await b.newContext({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 })).newPage();
@@ -32,7 +35,7 @@ const FPS = Number(args.find((a) => /^\d+$/.test(a)) || 30);
   }
   const frames = Math.round(total * FPS);
   const ff = spawn('ffmpeg', ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-i', music,
-    '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-r', String(FPS),
+    '-c:v', 'libx264', '-preset', 'slow', ...(bitrate ? ['-b:v', bitrate, '-maxrate', bitrate.replace(/\d+/, (n) => String(Number(n) * 2)), '-bufsize', bitrate.replace(/\d+/, (n) => String(Number(n) * 4))] : ['-crf', '18']), '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-r', String(FPS),
     '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   const started = Date.now();
   for (let i = 0; i < frames; i++) {

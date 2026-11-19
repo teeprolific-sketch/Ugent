@@ -1,4 +1,13 @@
-# Ugent brand film
+# Ugent brand films
+
+Two films share the same app screens, fonts and 3D phones:
+
+- **Brand film** (`scene/`): 1 min 50 s, 30 fps, calm, with ambient music (`music.py`).
+- **30-second cut** (`fast/`): 30 s, 60 fps, a cut on every beat of an original 128 BPM workout track (`music-fast.py`).
+  Beat map: intro words and wordmark (beats 0-7), the drop on beat 8, then Free, Pro and Team (a title plus 14 one-beat feature cuts each),
+  and the closing carousel with prices (beats 56-63).
+
+## The 1 min 50 s brand film
 
 A 1 min 50 s landscape (1920×1080, 30 fps) film with 3D phones showing real Ugent screens, in four parts:
 the intro, **Free** (white), **Pro** (deep navy) and **Team** (sky), then a closing carousel with the prices.
@@ -27,3 +36,15 @@ node brand/video/render.js brand/video/ugent-brand-film.mp4
 Needs Playwright's Chromium, ffmpeg and Python 3 with NumPy. Rendering takes several minutes.
 
 To change the words, order or timing, edit the `SEGMENTS` list at the top of the script in `scene/index.html`.
+
+## The 30-second cut
+
+```bash
+python3 brand/video/music-fast.py brand/video/music-fast.wav
+```
+
+```bash
+node brand/video/render.js --scene fast --bitrate 6000k
+```
+
+The words and screens for each beat are in the `CUTS` list at the top of `fast/index.html`. The music and the cuts share one beat map, so keep 14 cuts per plan, or change both files together.
