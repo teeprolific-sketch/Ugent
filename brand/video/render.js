@@ -36,7 +36,7 @@ const bitrate = opt('--bitrate', null); // e.g. 5500k for a target size; default
   const frames = Math.round(total * FPS);
   const ff = spawn('ffmpeg', ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-i', music,
     '-c:v', 'libx264', '-preset', 'slow', ...(bitrate ? ['-b:v', bitrate, '-maxrate', bitrate.replace(/\d+/, (n) => String(Number(n) * 2)), '-bufsize', bitrate.replace(/\d+/, (n) => String(Number(n) * 4))] : ['-crf', '18']), '-pix_fmt', 'yuv420p', '-profile:v', 'high', '-r', String(FPS),
-    '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+    ...(which === 'fast' ? ['-af', 'alimiter=limit=0.56:attack=0.5:release=30:level=false'] : []), '-c:a', 'aac', '-b:a', which === 'fast' ? '256k' : '192k', '-shortest', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   const started = Date.now();
   for (let i = 0; i < frames; i++) {
     await p.evaluate((t) => window.setTime(t), i / FPS);
