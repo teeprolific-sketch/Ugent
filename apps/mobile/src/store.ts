@@ -2,7 +2,7 @@
  * Every change to a task or plan is stamped with updatedAt and marked dirty for the next sync.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Action, EnergyLog, Hustle, IntegrationStatus, Lang, Logs, Me, Peak, Plan, PlanEvent, PlannerState, Product, Reason, Task, TaskStatus, TeamFeedItem, TeamInfo, TeamMemberStats } from '@ugent/core';
+import type { Action, AppPolicy, EnergyLog, Hustle, IntegrationStatus, Lang, Logs, Me, Peak, Plan, PlanEvent, PlannerState, Product, Reason, Task, TaskStatus, TeamFeedItem, TeamInfo, TeamMemberStats } from '@ugent/core';
 import { addDays, applyMoves, fmtDate, sampleDay, uid } from '@ugent/core';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -91,6 +91,8 @@ export interface AppState {
   /** The focus session that just ended, for the summary screen. */
   lastFocus: { mins: number; label: string; taskId: string | null; at: number; planned: number } | null;
   me: Me | null;
+  /** What the server allows right now (kill switches, trust level, account status). Null until fetched, or when offline-only. */
+  policy: AppPolicy | null;
   tasks: Task[];
   events: PlanEvent[];
   log: Logs;
@@ -126,6 +128,7 @@ export interface AppState {
   setSettings: (s: Partial<Settings>) => void;
   addDataUsage: (bytes: number) => void;
   setMe: (me: Me | null) => void;
+  setPolicy: (policy: AppPolicy | null) => void;
 
   addTask: (title: string, date?: string) => Task;
   updateTask: (id: string, patch: Partial<Task>) => void;
@@ -189,6 +192,7 @@ const DEFAULTS = {
   ecoRequests: [] as AppState['ecoRequests'],
   lastFocus: null as AppState['lastFocus'],
   me: null,
+  policy: null as AppPolicy | null,
   tasks: [] as Task[],
   events: [] as PlanEvent[],
   log: { completions: [], focus: [], energy: [], reschedules: [] } as Logs,
@@ -229,6 +233,7 @@ export const useApp = create<AppState>()(
           return { dataUsage: { month, bytes: (s.dataUsage.month === month ? s.dataUsage.bytes : 0) + bytes } };
         }),
         setSettings: (p) => set((s) => ({ settings: { ...s.settings, ...p } })),
+        setPolicy: (policy) => set({ policy }),
         setMe: (me) => set((s) => ({ me, workspace: me?.teamId || me?.plan === 'team' ? s.workspace : 'personal' })),
         setWorkspace: (workspace) => set({ workspace }),
         setTeam: (team) => set({ team }),

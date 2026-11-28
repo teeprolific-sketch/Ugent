@@ -1,7 +1,6 @@
 /* Admin console: staff roles, what each role may do, the registry of agent actions and the policy the phone receives.
  * Shared by the backend (which enforces it on every request), the admin console (which hides what a role can't use)
  * and the phone app (which refuses actions that are switched off). Pure data and functions only. */
-import { z } from 'zod';
 
 export const STAFF_ROLES = ['super', 'support', 'quality', 'tns', 'ops', 'finance', 'growth', 'analyst'] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
@@ -94,15 +93,14 @@ export const TRUST_LEVELS = [
 ] as const;
 
 /** What the phone receives from GET /api/config. */
-export const AppPolicy = z.object({
-  version: z.number().int(),
-  disabledActions: z.array(z.string()),
-  disabledIntegrations: z.array(z.string()),
-  cloudChat: z.boolean(),
-  trustLevel: z.number().int().min(0).max(2),
-  status: z.enum(['active', 'suspended', 'banned']),
-});
-export type AppPolicy = z.infer<typeof AppPolicy>;
+export interface AppPolicy {
+  version: number;
+  disabledActions: string[];
+  disabledIntegrations: string[];
+  cloudChat: boolean;
+  trustLevel: number;
+  status: 'active' | 'suspended' | 'banned';
+}
 
 /** Is this action allowed for a user right now? Shared by the server (chat) and the phone (before running). */
 export function actionAllowed(policy: Pick<AppPolicy, 'disabledActions' | 'trustLevel' | 'status'>, actionType: string): { ok: true } | { ok: false; reason: string } {

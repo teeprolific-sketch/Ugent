@@ -151,6 +151,32 @@ npm run smoke -w @ugent/api
 
 The smoke test runs against a live API (22 checks): sign-in, sync and conflicts, paged low-data sync on the free plan, compressed replies, privacy between users, chat fallback, the subscription webhook, teams, task board, shared updates, team analytics, roles, connected-service status, signed WhatsApp webhooks with auto-reply during focus, waitlists, support requests, plan limits and account deletion.
 
+## Admin console
+
+`apps/admin` is Ugent's internal admin console: users, support, pausing what the agent can do, privacy requests,
+incidents, AI cost, staff and the audit log. Staff sign in with their own access key; their role decides what they can do.
+It never shows people's chats, memory or notes. Read `docs/ADMIN_GUIDE.md` first.
+
+Set `STAFF_AUTH_SECRET` and `ADMIN_ALLOWED_ORIGINS` in `apps/api/.env.local`, then create the first Super Admin:
+
+```bash
+npm run admin:create-staff -w @ugent/api -- --name "Your Name" --role super
+```
+
+Build the console (a static site in `apps/admin/dist`):
+
+```bash
+ADMIN_API_URL=http://localhost:3000 npm run build -w @ugent/admin
+```
+
+A demo with made-up data and one demo key per role:
+
+```bash
+npm run build:demo -w @ugent/admin
+```
+
+More: `docs/ADMIN_CONFIG.md`, `docs/ADMIN_API.md`, `docs/PRIVACY_MODEL.md`, `docs/INCIDENT_PLAYBOOK.md`.
+
 ## Release to the App Store and Google Play
 
 1. **Expo account and EAS.** Run `npx eas-cli@latest init` in `apps/mobile` (fills `extra.eas.projectId`). Bundle ID and package are `ai.meai.ugent`; change them in `app.json` first if you want a different one, because they cannot change after release.

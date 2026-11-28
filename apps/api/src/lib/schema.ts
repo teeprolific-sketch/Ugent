@@ -28,7 +28,7 @@ export const users = pgTable('users', {
   /** Bumped to sign the user out everywhere (tokens carry the version they were issued with). */
   sessionVersion: integer('session_version').notNull().default(0),
   /** 0 drafts only, 1 low-risk automatic, 2 medium risk with confirmation. Staff can only lower it. */
-  trustLevel: integer('trust_level').notNull().default(1),
+  trustLevel: integer('trust_level').notNull().default(2),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

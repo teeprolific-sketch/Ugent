@@ -19,3 +19,4 @@ brand/video/scene/*.svg
 brand/video/*.mp4
 brand/video/*.wav
 brand/video/timeline.json
+apps/admin/dist-demo/

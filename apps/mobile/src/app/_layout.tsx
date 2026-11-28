@@ -13,6 +13,7 @@ import { Wordmark } from '@/brand/Logo';
 import { initNotifications, scheduleReminders } from '@/lib/notifications';
 import { initPurchases } from '@/lib/purchases';
 import { syncNow, syncSoon } from '@/lib/sync';
+import { refreshPolicy } from '@/lib/policy';
 import { refreshCloud, refreshImports } from '@/lib/connections';
 import { refreshTeam } from '@/lib/team';
 import { registerBackgroundWork } from '@/lib/background';
@@ -43,6 +44,7 @@ export default function RootLayout() {
     watchConnection();
     // Syncing is small and always runs. While saving data, skip the extras (Google, Gmail, team refresh) until asked.
     const refreshAll = () => { void syncNow().then(() => {
+      void refreshPolicy(); // tiny; runs even while saving data, so paused actions stop quickly
       if (saveData()) { void refreshImports(); return; }
       void refreshCloud().then(refreshImports);
       if (useApp.getState().me?.teamId) void refreshTeam();

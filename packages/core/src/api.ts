@@ -140,3 +140,13 @@ export function wallClock(localNow: string): Date {
   const [h, mi] = tm.split(':').map(Number);
   return new Date(y, mo - 1, da, h, mi);
 }
+
+/** GET /api/config: what the phone may do right now (kill switches, trust level, account status). Shape of AppPolicy in admin.ts. */
+export const AppPolicySchema = z.object({
+  version: z.number().int(),
+  disabledActions: z.array(z.string()),
+  disabledIntegrations: z.array(z.string()),
+  cloudChat: z.boolean(),
+  trustLevel: z.number().int().min(0).max(2),
+  status: z.enum(['active', 'suspended', 'banned']),
+});

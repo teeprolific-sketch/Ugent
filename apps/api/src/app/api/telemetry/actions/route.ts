@@ -10,7 +10,7 @@ const Telemetry = z.object({
   events: z.array(z.object({
     type: z.enum(ACTION_TYPES.map((a) => a.key) as [string, ...string[]]),
     status: z.enum(['confirmed_by_user', 'executed', 'failed', 'undone', 'declined', 'blocked']),
-    errorCode: z.enum(['APP_NOT_INSTALLED', 'PERMISSION_DENIED', 'CONTACT_NOT_FOUND', 'OFFLINE', 'ACTION_DISABLED', 'TRUST_LEVEL', 'UNKNOWN']).nullish(),
+    errorCode: z.enum(['APP_NOT_INSTALLED', 'PERMISSION_DENIED', 'CONTACT_NOT_FOUND', 'OFFLINE', 'ACTION_DISABLED', 'TRUST_LEVEL', 'ACCOUNT_SUSPENDED', 'UNKNOWN']).nullish(),
     latencyMs: z.number().int().min(0).max(600000).nullish(),
   }).strict()).max(50),
 }).strict();

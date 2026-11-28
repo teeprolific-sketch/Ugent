@@ -8,6 +8,7 @@ import { refreshCloud, refreshImports } from './connections';
 import { scheduleReminders } from './notifications';
 import { saveData, watchConnection } from './data';
 import { syncNow } from './sync';
+import { refreshPolicy } from './policy';
 
 export const BACKGROUND_TASK = 'ugent-background-refresh';
 
@@ -24,6 +25,7 @@ if (Platform.OS !== 'web') {
       watchConnection();
       if (!useApp.getState().onboarded) return BackgroundTask.BackgroundTaskResult.Success;
       await syncNow();
+      await refreshPolicy();
       if (!saveData()) await refreshCloud();
       await refreshImports();
       await scheduleReminders();

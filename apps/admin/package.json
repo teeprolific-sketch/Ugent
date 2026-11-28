@@ -1,0 +1,18 @@
+{
+  "name": "@ugent/admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ugent admin console: an internal web app that talks only to the Ugent admin API.",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:demo": "node build.mjs --demo",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ugent/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^5"
+  }
+}

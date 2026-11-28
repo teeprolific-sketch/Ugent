@@ -136,12 +136,19 @@ r = await call('GET', '/api/config', { token: U3 });
 assert.equal(r.data.policy.disabledActions.includes('buyAirtime'), false);
 step('approvals: a money action needs a second Super Admin; nobody approves their own request; Finance can\'t approve');
 
-// Trust level can only go down
+// Trust level: new accounts may do calls and messages (after confirming); staff can only lower it; only the user raises it
+r = await call('GET', '/api/config', { token: U3 });
+assert.equal(r.data.policy.trustLevel, 2);
 r = await call('POST', `/admin/v1/users/${uid}`, { token: TNS, body: { action: 'trust_lower', reason: 'Too many sends' } });
 assert.equal(r.status, 200);
 r = await call('GET', '/api/config', { token: U3 });
-assert.equal(r.data.policy.trustLevel, 0);
-step('trust level: staff can lower it and the phone sees the new level');
+assert.equal(r.data.policy.trustLevel, 1);
+r = await call('POST', '/api/me/trust', { token: U3, body: { level: 2 } });
+assert.equal(r.status, 200);
+assert.equal(r.data.policy.trustLevel, 2);
+r = await call('POST', '/api/me/trust', { token: U3, body: { level: 5 } });
+assert.equal(r.status, 400);
+step('trust level: starts at 2; staff can lower it and the phone sees it; only the user can raise it again');
 
 // Telemetry takes no free text
 r = await call('POST', '/api/telemetry/actions', { token: U3, body: { events: [{ type: 'message', status: 'executed', text: 'hello Mum' }] } });

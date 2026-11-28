@@ -1,6 +1,28 @@
 # Ugent admin console: implementation plan
 
-Status: **draft for founder approval. No admin code has been written yet.**
+Status: **Phase 1 core is built** (see "What was built" below). The rest of this plan is kept as the roadmap.
+
+## What was built, and how it differs from the draft
+
+The founders approved the recommendations with these changes:
+
+- **Sign-in is a personal access key per staff member**, not SSO. A Super Admin issues each key in the console
+  (or the first one with `npm run admin:create-staff`). Keys are shown once, stored only as a SHA-256 fingerprint,
+  expire (30 to 365 days), can be revoked at any time, and are throttled against guessing. SSO (D1) can be added later
+  in front of the same staff accounts.
+- **No product switcher, and no Sleek.** Each Me AI app gets its own admin console. This one is Ugent's only.
+- **`apps/admin` is a small static web app** (TypeScript, esbuild, no framework) rather than a Next.js app, because it
+  has no server of its own: it only calls the admin API. The same app has a demo build with a pretend server.
+- New accounts start at **trust level 2** (calls and messages allowed after the user confirms), matching how the app
+  already behaved. Staff can only lower it; only the user can raise it, in Privacy and memory.
+
+Built: staff accounts, access keys, 8 roles, the audit log (append-only in the database), users, support, agent controls
+(kill switches), maker-checker approvals for money actions, activity without content, privacy requests, incidents,
+AI usage and cost, the phone's policy (`/api/config`) and content-free telemetry. See `ADMIN_GUIDE.md`, `ADMIN_API.md`,
+`ADMIN_CONFIG.md`, `PRIVACY_MODEL.md` and `INCIDENT_PLAYBOOK.md`.
+
+Not built yet: prompt and routing management, WhatsApp and email support inboxes, error tracking and metrics (D3, D4),
+field encryption (D6), retention jobs (D7), break-glass content access, and Phase 2 and 3.
 Read with `ADMIN_CURRENT_STATE.md` (what exists) and `UGENT_ADMIN_PROMPT.md` (the brief).
 
 ## 1. Shape of the solution

@@ -6,8 +6,9 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { Group } from '@/components/kit';
-import { Button, ButtonRow, Card, Header, Row, Screen, Sheet, T, Toggle, useToast } from '@/components/ui';
+import { Button, ButtonRow, Card, Header, Row, Screen, Segmented, Sheet, T, Toggle, useToast } from '@/components/ui';
 import { apiConfigured, forgetSession, hasSession, request } from '@/lib/api';
+import { setTrustLevel } from '@/lib/policy';
 import { plannerState, useApp } from '@/store';
 import { useColors } from '@/theme';
 
@@ -76,6 +77,14 @@ export default function Privacy() {
 
       <Group title="Control">
         {sw('Ask before taking actions', 'Shows what it will do and waits for your OK.', s.askBeforeAction, (v) => state.setSettings({ askBeforeAction: v }))}
+        {apiConfigured() && state.policy ? (
+          <View style={{ gap: 8, paddingVertical: 8 }}>
+            <T v="strong">What Ugent may do for you</T>
+            <Segmented<number> value={state.policy.trustLevel} options={[[0, 'Suggest only'], [1, 'Simple things'], [2, 'Calls and messages']]}
+              onChange={(v) => { void setTrustLevel(v as 0 | 1 | 2).then(() => toast('Saved'), () => toast('Connect to the internet to change this.')); }} />
+            <T v="small" muted>{state.policy.trustLevel === 0 ? 'Ugent only suggests. Nothing happens until you tap it.' : state.policy.trustLevel === 1 ? 'Ugent can add tasks and plans. It will not start calls or send messages.' : 'Ugent can also start calls and messages, always after you confirm.'}</T>
+          </View>
+        ) : null}
         {apiConfigured() ? sw('Smarter answers when online', "Sends your message and today's plan to Ugent's AI. Off: chat stays on the phone.", s.cloudChat, (v) => state.setSettings({ cloudChat: v })) : null}
       </Group>
 
