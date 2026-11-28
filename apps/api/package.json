@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:admin": "node scripts/admin-smoke.mjs",
+    "admin:create-staff": "tsx --tsconfig tsconfig.json scripts/create-staff.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

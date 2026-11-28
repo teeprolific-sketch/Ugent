@@ -12,8 +12,9 @@ const secret = () => {
   return new TextEncoder().encode(s);
 };
 
-export async function signToken(userId: string): Promise<string> {
-  return new SignJWT({}).setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt().setExpirationTime('365d').setIssuer('ugent').sign(secret());
+/** The token carries the user's session version: staff bump it to sign the user out everywhere. */
+export async function signToken(userId: string, sessionVersion = 0): Promise<string> {
+  return new SignJWT({ sv: sessionVersion }).setProtectedHeader({ alg: 'HS256' }).setSubject(userId).setIssuedAt().setExpirationTime('365d').setIssuer('ugent').sign(secret());
 }
 
 export type User = typeof schema.users.$inferSelect;
@@ -24,14 +25,23 @@ export async function requireUser(req: Request): Promise<User> {
   const token = h.startsWith('Bearer ') ? h.slice(7) : '';
   if (!token) throw new HttpError(401, 'Sign in again.', 'unauthorized');
   let sub: string | undefined;
+  let sv = 0;
   try {
     const { payload } = await jwtVerify(token, secret(), { issuer: 'ugent' });
     sub = payload.sub;
+    sv = typeof payload.sv === 'number' ? payload.sv : 0;
   } catch {
     throw new HttpError(401, 'Your session has expired. Sign in again.', 'unauthorized');
   }
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, sub!)).limit(1);
   if (!user) throw new HttpError(401, 'This account no longer exists.', 'unauthorized');
+  if (sv !== user.sessionVersion) throw new HttpError(401, 'You were signed out. Open Ugent again to continue.', 'signed_out');
+  if (user.status === 'banned') throw new HttpError(403, 'This account has been closed. Contact Ugent support if you think this is a mistake.', 'account_banned');
+  if (user.status === 'suspended') throw new HttpError(403, 'This account is paused while Ugent support looks into something. Contact support to find out more.', 'account_suspended');
+  // Last seen, at most every 10 minutes, for "active users" counts.
+  if (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > 600_000) {
+    await db.update(schema.users).set({ lastSeenAt: new Date() }).where(eq(schema.users.id, user.id));
+  }
   return user;
 }
 

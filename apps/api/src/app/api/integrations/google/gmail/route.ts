@@ -1,10 +1,12 @@
 import { requireUser } from '@/lib/auth';
+import { requireIntegrationOn } from '@/lib/policy';
 import { accessToken, googleGet } from '@/lib/google';
 import { handle, json } from '@/lib/http';
 
 /** For the daily brief: how many important unread emails, and the top three senders and subjects. Bodies are never read. */
 export const GET = handle(async (req: Request) => {
   const user = await requireUser(req);
+  await requireIntegrationOn('gmail', 'Gmail');
   const token = await accessToken(user.id, 'gmail');
   const q = new URLSearchParams({ q: 'is:unread is:important newer_than:2d', maxResults: '3' });
   const list = await googleGet<{ messages?: { id: string }[]; resultSizeEstimate?: number }>(token, `https://gmail.googleapis.com/gmail/v1/users/me/messages?${q}`);

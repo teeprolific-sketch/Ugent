@@ -1,4 +1,4 @@
-import { bigint, boolean, index, integer, pgSequence, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, jsonb, pgSequence, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 
 /** Bumped on every write so clients can pull "everything since my cursor". */
 export const revSeq = pgSequence('ugent_rev');
@@ -23,6 +23,13 @@ export const users = pgTable('users', {
   teamRole: text('team_role'),
   chatDay: text('chat_day').notNull().default(''),
   chatCount: integer('chat_count').notNull().default(0),
+  /** active | suspended | banned. Set by staff; checked on every request. */
+  status: text('status').notNull().default('active'),
+  /** Bumped to sign the user out everywhere (tokens carry the version they were issued with). */
+  sessionVersion: integer('session_version').notNull().default(0),
+  /** 0 drafts only, 1 low-risk automatic, 2 medium risk with confirmation. Staff can only lower it. */
+  trustLevel: integer('trust_level').notNull().default(1),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -113,5 +120,195 @@ export const supportRequests = pgTable('support_requests', {
   topic: text('topic').notNull(),
   message: text('message').notNull(),
   contact: text('contact'),
+  /** Ticket workflow: open | waiting | closed. */
+  status: text('status').notNull().default('open'),
+  priority: text('priority').notNull().default('normal'),
+  assignedTo: text('assigned_to'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ---------- Admin console ---------- */
+
+/** Me AI staff who can use the Ugent admin console. */
+export const staffUsers = pgTable('staff_users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email'),
+  createdBy: text('created_by'),
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const staffRoles = pgTable('staff_roles', {
+  staffId: text('staff_id').notNull(),
+  role: text('role').notNull(),
+  grantedBy: text('granted_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.staffId, t.role] })]);
+
+/** Personal access keys. Only a hash is stored; the key itself is shown once, when it is issued. */
+export const staffAccessKeys = pgTable('staff_access_keys', {
+  id: text('id').primaryKey(),
+  staffId: text('staff_id').notNull(),
+  prefix: text('prefix').notNull().unique(),
+  keyHash: text('key_hash').notNull(),
+  label: text('label').notNull().default(''),
+  createdBy: text('created_by'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const staffSessions = pgTable('staff_sessions', {
+  id: text('id').primaryKey(),
+  staffId: text('staff_id').notNull(),
+  keyId: text('key_id').notNull(),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Append-only. The database refuses UPDATE and DELETE on this table (see migration). Shared Me AI format. */
+export const auditLog = pgTable('audit_log', {
+  id: text('id').primaryKey(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  staffId: text('staff_id').notNull(),
+  product: text('product').notNull().default('ugent'),
+  role: text('role').notNull(),
+  action: text('action').notNull(),
+  targetType: text('target_type').notNull(),
+  targetId: text('target_id').notNull(),
+  reason: text('reason').notNull(),
+  before: jsonb('before'),
+  after: jsonb('after'),
+  ip: text('ip'),
+  userAgent: text('user_agent'),
+}, (t) => [index('audit_at').on(t.at), index('audit_target').on(t.targetType, t.targetId)]);
+
+/** Maker-checker: a second person approves before the change happens. */
+export const approvalRequests = pgTable('approval_requests', {
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull(),
+  summary: text('summary').notNull(),
+  reason: text('reason').notNull(),
+  requestedBy: text('requested_by').notNull(),
+  decidedBy: text('decided_by'),
+  status: text('status').notNull().default('pending'),
+  decisionReason: text('decision_reason'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Switched-off action types, integrations and channels. A row is active until cleared; history is kept. */
+export const killSwitches = pgTable('kill_switches', {
+  id: text('id').primaryKey(),
+  targetType: text('target_type').notNull(),
+  targetKey: text('target_key').notNull(),
+  reason: text('reason').notNull(),
+  setBy: text('set_by').notNull(),
+  clearedBy: text('cleared_by'),
+  clearedAt: timestamp('cleared_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('kill_active').on(t.targetType, t.targetKey)]);
+
+/** Action types that need approval to switch on (money actions). Rows here mean "enabled". */
+export const enabledActionTypes = pgTable('enabled_action_types', {
+  key: text('key').primaryKey(),
+  enabledBy: text('enabled_by').notNull(),
+  approvalId: text('approval_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** What the agent proposed or did. No content: the summary comes from a template. */
+export const actionEvents = pgTable('action_events', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  actionType: text('action_type').notNull(),
+  risk: text('risk').notNull(),
+  status: text('status').notNull(),
+  source: text('source').notNull(),
+  model: text('model'),
+  latencyMs: integer('latency_ms'),
+  errorCode: text('error_code'),
+  summary: text('summary').notNull(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('action_events_at').on(t.at), index('action_events_user').on(t.userId, t.at)]);
+
+/** One row per cloud model call. Cost is in US dollar micro-units (1 = $0.000001) once prices are set. */
+export const usageRecords = pgTable('usage_records', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  model: text('model').notNull(),
+  taskType: text('task_type').notNull(),
+  tokensIn: integer('tokens_in').notNull(),
+  tokensOut: integer('tokens_out').notNull(),
+  costUsdMicro: bigint('cost_usd_micro', { mode: 'number' }),
+  latencyMs: integer('latency_ms').notNull(),
+  fallback: boolean('fallback').notNull().default(false),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('usage_at').on(t.at)]);
+
+export const userNotes = pgTable('user_notes', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  staffId: text('staff_id').notNull(),
+  note: text('note').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const ticketMessages = pgTable('ticket_messages', {
+  id: text('id').primaryKey(),
+  ticketId: text('ticket_id').notNull(),
+  staffId: text('staff_id'),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Export, deletion, correction and consent-withdrawal requests, with legal deadlines. */
+export const dataRequests = pgTable('data_requests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  type: text('type').notNull(),
+  status: text('status').notNull().default('open'),
+  source: text('source').notNull().default('app'),
+  dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const incidents = pgTable('incidents', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  severity: text('severity').notNull(),
+  status: text('status').notNull().default('investigating'),
+  components: text('components').notNull().default(''),
+  ownerId: text('owner_id').notNull(),
+  userComms: text('user_comms').notNull().default('Not yet'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+});
+
+export const incidentUpdates = pgTable('incident_updates', {
+  id: text('id').primaryKey(),
+  incidentId: text('incident_id').notNull(),
+  staffId: text('staff_id').notNull(),
+  body: text('body').notNull(),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Versioned settings edited from the console (e.g. model prices). Newest row per key wins; nothing is overwritten. */
+export const configVersions = pgTable('config_versions', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull(),
+  version: integer('version').notNull(),
+  value: jsonb('value').notNull(),
+  createdBy: text('created_by').notNull(),
+  reason: text('reason').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('config_key_version').on(t.key, t.version)]);

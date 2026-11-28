@@ -2,6 +2,7 @@ import { uid } from '@ugent/core';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db';
 import { json } from '@/lib/http';
+import { recordActionEvents, switches } from '@/lib/policy';
 import { sendText, validSignature } from '@/lib/whatsapp';
 
 /** Meta checks the webhook once when it is set up. */
@@ -26,6 +27,8 @@ export async function POST(req: Request) {
   let received = 0;
   let replied = 0;
   let wouldReply = 0;
+  const sw = await switches();
+  const paused = sw.integrations.has('whatsappBusiness') || sw.actions.has('waAutoReply');
   for (const change of payload.entry?.flatMap((e) => e.changes ?? []) ?? []) {
     const v = change.value;
     const phoneNumberId = v?.metadata?.phone_number_id;
@@ -36,10 +39,11 @@ export async function POST(req: Request) {
     const focusing = !!owner?.focusUntil && owner.focusUntil.getTime() > Date.now();
     for (const m of v.messages) {
       received++;
-      const should = focusing && biz.autoReplyOn;
+      const should = focusing && biz.autoReplyOn && !paused && owner?.status === 'active';
       if (should) wouldReply++;
       const sent = should ? await sendText(phoneNumberId, m.from, biz.autoReply) : false;
       if (sent) replied++;
+      if (focusing && biz.autoReplyOn) await recordActionEvents(biz.userId, [{ type: 'waAutoReply', status: sent ? 'executed' : should ? 'failed' : 'blocked', source: 'server', model: null, errorCode: sent ? null : should ? 'SEND_FAILED' : 'PAUSED' }]);
       await db.insert(schema.waInbox).values({ id: uid(), userId: biz.userId, from: m.from, text: m.type === 'text' ? m.text?.body ?? '' : `(${m.type})`, autoReplied: sent });
     }
   }

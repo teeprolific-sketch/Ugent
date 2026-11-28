@@ -187,7 +187,9 @@ function toActions(out: Output, state: PlannerState, now: Date): { actions: Acti
 export class CloudChatUnavailable extends Error {}
 
 /** Ask Claude. Throws CloudChatUnavailable when the cloud cannot answer, so the caller can fall back. */
-export async function cloudChat(req: ChatRequest, state: PlannerState): Promise<AgentReply> {
+export interface CloudChatResult { reply: AgentReply; model: string; tokensIn: number; tokensOut: number }
+
+export async function cloudChat(req: ChatRequest, state: PlannerState): Promise<CloudChatResult> {
   if (!cloudChatEnabled()) throw new CloudChatUnavailable('no_key');
   const now = wallClock(req.localNow);
   const messages: Anthropic.Beta.BetaMessageParam[] = [
@@ -228,5 +230,5 @@ export async function cloudChat(req: ChatRequest, state: PlannerState): Promise<
     throw new CloudChatUnavailable('bad_output');
   }
   const { actions, draft } = toActions(out, state, now);
-  return { text: out.reply.trim(), actions, draft, source: 'cloud' };
+  return { reply: { text: out.reply.trim(), actions, draft, source: 'cloud' }, model: res.model ?? MODEL, tokensIn: res.usage?.input_tokens ?? 0, tokensOut: res.usage?.output_tokens ?? 0 };
 }

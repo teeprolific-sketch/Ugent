@@ -1,4 +1,5 @@
 import { requireUser } from '@/lib/auth';
+import { requireIntegrationOn } from '@/lib/policy';
 import { accessToken, googleGet, localParts } from '@/lib/google';
 import { handle, json } from '@/lib/http';
 
@@ -7,6 +8,7 @@ interface GEvent { id: string; summary?: string; location?: string; start: { dat
 /** The user's Google Calendar events for the next few days, in their time zone (timed events only). */
 export const GET = handle(async (req: Request) => {
   const user = await requireUser(req);
+  await requireIntegrationOn('googleCalendar', 'Google Calendar');
   const url = new URL(req.url);
   const tz = url.searchParams.get('tz') || 'Africa/Lagos';
   const days = Math.min(14, Math.max(1, Number(url.searchParams.get('days') ?? 7)));

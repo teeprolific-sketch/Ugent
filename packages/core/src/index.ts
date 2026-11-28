@@ -8,3 +8,5 @@ export * from './samples';
 export * from './scam';
 export * from './personal';
 export * from './insights';
+export * from './admin';
+export * from './redact';

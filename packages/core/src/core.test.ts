@@ -176,3 +176,41 @@ test('ecosystem: Sleek bookings, robot commands and scam checks from chat', () =
   assert.equal((respond('Tell Afrika I to patrol the farm', s, { lang: 'en', now, fmtTime }).actions[0] as { product: string }).product, 'afrika');
   assert.match(respond('Is this a scam: URGENT send your BVN and OTP now or your account will be blocked', s, { lang: 'en', now, fmtTime }).text, /looks like a scam/);
 });
+
+test('admin: roles get exactly their permissions; Finance never sees users or activity', async () => {
+  const { roleCan, staffCan, STAFF_ROLES, PERMISSIONS } = await import('./index');
+  for (const p of PERMISSIONS) assert.equal(roleCan('super', p), true, p);
+  for (const p of ['users.view', 'activity.view', 'support.view', 'privacy.view', 'audit.view'] as const) assert.equal(roleCan('finance', p), false, p);
+  assert.equal(roleCan('support', 'users.ban'), false);
+  assert.equal(roleCan('support', 'staff.manage'), false);
+  assert.equal(roleCan('tns', 'controls.kill_action'), true);
+  assert.equal(roleCan('ops', 'controls.kill_action'), false);
+  assert.equal(roleCan('ops', 'controls.kill_integration'), true);
+  for (const r of STAFF_ROLES) assert.equal(roleCan(r, 'overview.view'), true, r);
+  for (const r of STAFF_ROLES.filter((x) => x !== 'super')) assert.equal(roleCan(r, 'approvals.decide') || roleCan(r, 'staff.manage'), false, r);
+  assert.equal(staffCan(['growth', 'support'], 'users.view'), true);
+});
+
+test('admin: action policy blocks switched-off, not-live, suspended and above-trust actions', async () => {
+  const { actionAllowed, actionSummary } = await import('./index');
+  const p = { disabledActions: ['message'], trustLevel: 1, status: 'active' as const };
+  assert.deepEqual(actionAllowed(p, 'addTask'), { ok: true });
+  assert.equal(actionAllowed(p, 'message').ok, false);
+  assert.equal(actionAllowed({ ...p, disabledActions: [] }, 'call').ok, false); // trust level 1 < 2
+  assert.equal(actionAllowed({ ...p, disabledActions: [], trustLevel: 2 }, 'call').ok, true);
+  assert.equal(actionAllowed({ ...p, disabledActions: [], trustLevel: 2 }, 'payBill').ok, false); // not live
+  assert.equal(actionAllowed({ ...p, status: 'suspended' }, 'addTask').ok, false);
+  const s = actionSummary({ type: 'message', channel: 'whatsapp', name: 'Mum', phone: '08031234567', text: 'Call me back' });
+  assert.equal(s, 'WhatsApp to a contact · 12 characters');
+  assert.equal(/Mum|0803|Call me/.test(s), false);
+});
+
+test('redaction removes numbers, emails, OTPs and known names; masking keeps a hint only', async () => {
+  const { redactText, maskPhone, maskEmail } = await import('./index');
+  const r = redactText('Hi, na Ngozi. Send ₦5,000 to 0123456789, my number na 0803 123 4567, email ada@gmail.com, OTP is 482913, card 4111 1111 1111 1111', ['Ngozi']);
+  for (const leak of ['Ngozi', '0123456789', '0803', 'ada@gmail.com', '482913', '4111']) assert.equal(r.includes(leak), false, leak);
+  assert.match(r, /\[name\]/); assert.match(r, /\[email\]/); assert.match(r, /OTP \[hidden\]/i);
+  assert.equal(redactText('Meet at 4pm, room 12, 2 bags of rice'), 'Meet at 4pm, room 12, 2 bags of rice');
+  assert.equal(maskPhone('+2348031234567'), '+234 803 ••• ••67');
+  assert.equal(maskEmail('ada.obi@gmail.com'), 'a•••••@gmail.com');
+});

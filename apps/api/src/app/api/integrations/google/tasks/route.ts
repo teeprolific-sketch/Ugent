@@ -1,10 +1,12 @@
 import { requireUser } from '@/lib/auth';
+import { requireIntegrationOn } from '@/lib/policy';
 import { accessToken, googleGet } from '@/lib/google';
 import { handle, json } from '@/lib/http';
 
 /** Open tasks from the user's default Google Tasks list, for importing into Ugent. */
 export const GET = handle(async (req: Request) => {
   const user = await requireUser(req);
+  await requireIntegrationOn('googleTasks', 'Google Tasks');
   const token = await accessToken(user.id, 'googleTasks');
   const data = await googleGet<{ items?: { id: string; title?: string; due?: string; notes?: string }[] }>(
     token, 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false&maxResults=50');

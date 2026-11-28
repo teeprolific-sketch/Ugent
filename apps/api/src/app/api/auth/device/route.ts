@@ -2,7 +2,7 @@ import { DeviceAuthRequest, uid } from '@ugent/core';
 import { eq } from 'drizzle-orm';
 import { signToken } from '@/lib/auth';
 import { db, schema } from '@/lib/db';
-import { body, handle, json } from '@/lib/http';
+import { body, handle, HttpError, json } from '@/lib/http';
 import { toMe } from '@/lib/plan';
 
 /** Registers an install (or signs it back in) and returns a session token. */
@@ -16,5 +16,6 @@ export const POST = handle(async (req: Request) => {
     name: input.name ?? '',
     lang: input.lang ?? 'en',
   }).returning())[0];
-  return json({ token: await signToken(user.id), me: toMe(user) }, existing ? 200 : 201);
+  if (user.status === 'banned') throw new HttpError(403, 'This account has been closed. Contact Ugent support if you think this is a mistake.', 'account_banned');
+  return json({ token: await signToken(user.id, user.sessionVersion), me: toMe(user) }, existing ? 200 : 201);
 });

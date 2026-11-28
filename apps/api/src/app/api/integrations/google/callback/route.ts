@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { verifyState } from '@/lib/auth';
 import { db, schema } from '@/lib/db';
 import { exchangeCode, isGoogleProvider } from '@/lib/google';
+import { logError } from '@/lib/http';
 
 const back = (q: string) => Response.redirect(`ugent://connections?${q}`, 302);
 
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     });
     return back(`connected=${provider}`);
   } catch (e) {
-    console.error('Google callback failed', e);
+    logError('google-callback', e);
     return back('error=failed');
   }
 }
